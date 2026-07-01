@@ -390,6 +390,15 @@ export default function App() {
           .impression-page table { font-size: 7.5px !important; }
           .impression-page tr { height: 15px !important; }
           .impression-page td, .impression-page th { padding: 1px 4px !important; line-height: 1.2 !important; }
+
+          /* Trombinoscope — A3 portrait, une seule page */
+          .trombi-view { zoom: 0.56; transform-origin: top left; }
+          .trombi-view .trombi-rail { display: none !important; }
+          .trombi-view .trombi-card { padding: 4px !important; }
+          .trombi-view .trombi-photo { width: 48px !important; height: 48px !important; font-size: 13px !important; }
+          .trombi-view .trombi-name { font-size: 8px !important; margin-top: 4px !important; }
+          .trombi-view .trombi-sub  { font-size: 7px !important; }
+          .trombi-view .trombi-spec { display: none !important; }
         }
         .print-only { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -638,14 +647,14 @@ function Avatar({ personne, size = 64 }) {
         src={personne.photoUrl}
         alt={`${personne.prenom} ${personne.nom}`}
         style={{ width: size, height: size }}
-        className="rounded-full object-cover border-2 border-white shadow"
+        className="trombi-photo rounded-full object-cover border-2 border-white shadow"
       />
     );
   }
   return (
     <div
       style={{ width: size, height: size, background: hashColor(personne.nom + personne.prenom) }}
-      className="rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow"
+      className="trombi-photo rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow"
     >
       <span style={{ fontSize: size * 0.34 }}>{initials(personne)}</span>
     </div>
@@ -865,7 +874,13 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
       </div>
 
       {printAgences.map((agence) => {
-        const liste = personnes.filter((p) => p.agenceId === agence.id || p.agence_id === agence.id);
+        const listeBrute = personnes.filter((p) => p.agenceId === agence.id || p.agence_id === agence.id);
+        const liste = [...listeBrute].sort((a, b) => {
+          const ma = a.matricule || ''; const mb = b.matricule || '';
+          const na = parseInt(ma); const nb = parseInt(mb);
+          if (!isNaN(na) && !isNaN(nb)) return na - nb;
+          return ma.localeCompare(mb);
+        });
         return (
           <div
             key={agence.id}
@@ -929,26 +944,8 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                   {groups.map((group) =>
                     group.items.map((item, itemIdx) => (
                       <tr key={item.id} style={{ borderBottom: itemIdx === group.items.length - 1 ? "2px solid " + group.color + "50" : "1px solid #f1f5f9" }}>
-                        {/* Code catégorie fusionné */}
                         {itemIdx === 0 && (
-                          <td
-                            rowSpan={group.items.length}
-                            style={{
-                              background: group.color + "18",
-                              borderRight: "2px solid " + group.color + "60",
-                              padding: "2px 3px",
-                              verticalAlign: "middle",
-                              textAlign: "center",
-                              writingMode: "vertical-rl",
-                              transform: "rotate(180deg)",
-                              fontSize: "7px",
-                              fontWeight: 800,
-                              color: group.color,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.07em",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
+                          <td rowSpan={group.items.length} style={{ background: group.color + "18", borderRight: "2px solid " + group.color + "60", padding: "2px 3px", verticalAlign: "middle", textAlign: "center", writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: "7px", fontWeight: 800, color: group.color, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
                             {group.items[0]?.cat && group.items[0].cat !== "custom" ? group.items[0].cat : group.catLabel}
                           </td>
                         )}
@@ -1023,14 +1020,20 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
 
 function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, onPhotoChange }) {
   return (
-    <div className="space-y-10 print:space-y-3">
+    <div className="space-y-10 print:space-y-2 trombi-view">
       {agences.map((agence) => {
-        const liste = personnes.filter((p) => p.agenceId === agence.id);
-        if (liste.length === 0) return null;
+        const listeBrute = personnes.filter((p) => p.agenceId === agence.id);
+        if (listeBrute.length === 0) return null;
+        const liste = [...listeBrute].sort((a, b) => {
+          const ma = a.matricule || ''; const mb = b.matricule || '';
+          const na = parseInt(ma); const nb = parseInt(mb);
+          if (!isNaN(na) && !isNaN(nb)) return na - nb;
+          return ma.localeCompare(mb);
+        });
         return (
           <section key={agence.id} className="flex gap-0 print:break-inside-avoid">
             <div
-              className="hidden sm:flex items-center justify-center w-12 rounded-l-2xl text-white font-extrabold uppercase tracking-widest text-sm shrink-0"
+              className="trombi-rail hidden sm:flex items-center justify-center w-12 rounded-l-2xl text-white font-extrabold uppercase tracking-widest text-sm shrink-0"
               style={{ background: agence.rail, writingMode: "vertical-rl", transform: "rotate(180deg)" }}
             >
               {agence.nom}
@@ -1044,7 +1047,7 @@ function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, on
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-5 gap-4 print:gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-6 gap-4 print:gap-1.5">
                 {liste.map((p) => (
                   <PersonCard key={p.id} personne={p} adminMode={adminMode} onEdit={onEdit} onDelete={onDelete} onPhotoChange={onPhotoChange} />
                 ))}
@@ -1059,7 +1062,7 @@ function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, on
 
 function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange }) {
   return (
-    <div className="group relative border border-slate-200 rounded-xl p-5 print:p-2 flex flex-col items-center text-center hover:shadow-md transition bg-slate-50/50">
+    <div className="trombi-card group relative border border-slate-200 rounded-xl p-5 print:p-2 flex flex-col items-center text-center hover:shadow-md transition bg-slate-50/50">
       {adminMode && (
         <div className="absolute top-2 right-2 flex gap-1 no-print">
           <button onClick={() => onEdit(personne)} className="p-1.5 rounded-md bg-white border border-slate-200 hover:bg-slate-100">
@@ -1071,24 +1074,24 @@ function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange }) {
         </div>
       )}
       <AvatarUpload personne={personne} size={120} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
-      <p className="mt-4 font-bold text-base text-slate-800">{personne.prenom} {personne.nom}</p>
-      <p className="text-sm text-cyan-700 font-medium mt-0.5">{personne.poste}</p>
+      <p className="trombi-name mt-4 font-bold text-base text-slate-800">{personne.prenom} {personne.nom}</p>
+      <p className="trombi-sub text-sm text-cyan-700 font-medium mt-0.5">{personne.poste}</p>
       {personne.ville && (
-        <p className="text-xs text-slate-400 flex items-center gap-1 mt-1.5">
+        <p className="trombi-sub text-xs text-slate-400 flex items-center gap-1 mt-1.5">
           <MapPin size={12} /> {personne.ville}
         </p>
       )}
       {personne.specialites && (
-        <p className="text-xs text-slate-500 mt-2.5 leading-relaxed">{personne.specialites}</p>
+        <p className="trombi-spec text-xs text-slate-500 mt-2.5 leading-relaxed">{personne.specialites}</p>
       )}
       <div className="mt-3.5 space-y-1.5 w-full">
         {personne.telephone && (
-          <a href={`tel:${personne.telephone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-1.5 text-sm text-slate-600 hover:text-cyan-700">
+          <a href={`tel:${personne.telephone.replace(/\s/g, "")}`} className="trombi-sub flex items-center justify-center gap-1.5 text-sm text-slate-600 hover:text-cyan-700">
             <Phone size={13} /> {personne.telephone}
           </a>
         )}
         {personne.email && (
-          <a href={`mailto:${personne.email}`} className="flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-cyan-700 truncate">
+          <a href={`mailto:${personne.email}`} className="trombi-sub flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-cyan-700 truncate">
             <Mail size={13} /> <span className="truncate">{personne.email}</span>
           </a>
         )}
@@ -1158,7 +1161,7 @@ function QualificationsView({ agences, personnes, items, pq, adminMode, orderedI
   }
 
   return (
-    <div className="space-y-10 print:space-y-3">
+    <div className="space-y-10 print:space-y-2 trombi-view">
       {/* Barre de recherche + bouton ajout */}
       <div className="flex items-center gap-3 flex-wrap no-print">
         <div className="relative flex-1 min-w-64">
