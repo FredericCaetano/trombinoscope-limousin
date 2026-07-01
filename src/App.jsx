@@ -255,15 +255,30 @@ export default function App() {
 
   const bpq = (rows) => { const m={}; (rows||[]).forEach(r=>{ if(!m[r.personne_id])m[r.personne_id]=[]; m[r.personne_id].push(r.item_id); }); return m; };
 
+  const [error, setError] = useState(null);
+
   useEffect(() => {
     async function loadAll() {
-      const [{data:p},{data:i},{data:q}] = await Promise.all([
-        supabase.from('personnes').select('*'),
-        supabase.from('qualif_items').select('*').order('position'),
-        supabase.from('personne_qualifications').select('*'),
-      ]);
-      setPersonnes((p||[]).map(normalizePersonne)); setQualifItems((i||[]).map(normalizeItem));
-      setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
+      try {
+        const [{data:p, error:ep},{data:i, error:ei},{data:q, error:eq}] = await Promise.all([
+          supabase.from('personnes').select('*'),
+          supabase.from('qualif_items').select('*').order('position'),
+          supabase.from('personne_qualifications').select('*'),
+        ]);
+        if (ep || ei || eq) {
+          setError(`Erreur Supabase : ${(ep||ei||eq).message}`);
+          setLoading(false);
+          return;
+        }
+        setPersonnes((p||[]).map(normalizePersonne));
+        setQualifItems((i||[]).map(normalizeItem));
+        setOrderedItemIds((i||[]).map(it=>it.id));
+        setPq(bpq(q));
+        setLoading(false);
+      } catch(e) {
+        setError(`Erreur de connexion : ${e.message}`);
+        setLoading(false);
+      }
     }
     loadAll();
   }, []);
@@ -340,6 +355,18 @@ export default function App() {
       <p style={{ color: "#64748b", fontSize: 15, fontWeight: 600 }}>Chargement des données…</p>
       <div style={{ width: 36, height: 36, border: "4px solid #e2e8f0", borderTop: "4px solid #2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "#fef2f2", padding: 32 }}>
+      <img src={SOCOTEC_LOGO} alt="Socotec" style={{ height: 48, width: "auto" }} />
+      <h2 style={{ color: "#dc2626", fontSize: 18, fontWeight: 700, margin: 0 }}>Erreur de connexion à la base de données</h2>
+      <p style={{ color: "#7f1d1d", fontSize: 14, maxWidth: 480, textAlign: "center", background: "#fee2e2", padding: "12px 20px", borderRadius: 12, fontFamily: "monospace" }}>{error}</p>
+      <p style={{ color: "#64748b", fontSize: 13 }}>Vérifiez les variables d'environnement Supabase dans Vercel (VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY)</p>
+      <button onClick={() => { setError(null); setLoading(true); }} style={{ padding: "10px 20px", borderRadius: 8, background: "#1e3a5f", color: "white", border: "none", cursor: "pointer", fontWeight: 600 }}>
+        Réessayer
+      </button>
     </div>
   );
 
