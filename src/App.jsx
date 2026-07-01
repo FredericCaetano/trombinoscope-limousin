@@ -374,22 +374,22 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans p-3 sm:p-6 print:p-0">
       <style>{`
         @media print {
-          @page { size: A3 landscape; margin: 5mm; }
+          @page { size: A3 portrait; margin: 5mm; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
           .print-only { display: block !important; }
           .impression-page {
             page-break-after: always;
             page-break-inside: avoid;
-            zoom: 0.52;
+            zoom: 0.85;
             transform-origin: top left;
             border-radius: 0 !important;
             border: none !important;
           }
           .impression-page:last-child { page-break-after: auto; }
-          .impression-page table { font-size: 6.5px !important; }
-          .impression-page tr { height: 12px !important; }
-          .impression-page td, .impression-page th { padding: 0px 3px !important; line-height: 1.1 !important; }
+          .impression-page table { font-size: 7.5px !important; }
+          .impression-page tr { height: 15px !important; }
+          .impression-page td, .impression-page th { padding: 1px 4px !important; line-height: 1.2 !important; }
         }
         .print-only { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
