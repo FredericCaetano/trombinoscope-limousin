@@ -310,15 +310,30 @@ export default function App() {
   async function updatePersonPhoto(id, b64) {
     setSaving(true);
     try {
+      // 1. Vérifier que le mode édition est bien actif
+      if (!adminMode) { alert('Mode édition non actif !'); markSaved(); return; }
+
+      // 2. Sauvegarder
       const { error } = await supabase.from('personnes').update({ photo_url: b64 }).eq('id', id);
-      if (error) {
-        alert('Erreur Supabase : ' + error.message + '\n\nCode : ' + error.code);
-        markSaved();
-        return;
+      if (error) { alert('Erreur update: ' + error.message); markSaved(); return; }
+
+      // 3. Relire depuis Supabase pour vérifier
+      const { data: check, error: e2 } = await supabase.from('personnes').select('photo_url').eq('id', id).single();
+      if (e2) { alert('Erreur relecture: ' + e2.message); markSaved(); return; }
+
+      const stored = check?.photo_url?.length || 0;
+      const expected = b64.length;
+
+      if (stored < 100) {
+        alert(`⚠️ Photo non sauvegardée !\nStocké: ${stored} chars\nAttendu: ${expected} chars\n\nVérifiez que la colonne photo_url est de type TEXT dans Supabase.`);
+      } else if (stored !== expected) {
+        alert(`⚠️ Photo tronquée !\nStocké: ${stored} chars\nAttendu: ${expected} chars`);
+      } else {
+        // Tout va bien — mettre à jour l'état local
+        setPersonnes(prev => prev.map(p => p.id === id ? { ...p, photo_url: b64, photoUrl: b64 } : p));
       }
-      setPersonnes(prev => prev.map(p => p.id === id ? { ...p, photo_url: b64, photoUrl: b64 } : p));
     } catch(e) {
-      alert('Erreur inattendue : ' + e.message);
+      alert('Erreur inattendue: ' + e.message);
     }
     markSaved();
   }
