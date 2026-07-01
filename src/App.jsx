@@ -385,8 +385,8 @@ export default function App() {
           .trombi-view .trombi-rail  { display: none !important; }
           .trombi-view .trombi-card  { padding: 5px !important; }
           .trombi-view .trombi-photo { width: 50px !important; height: 50px !important; font-size: 14px !important; }
-          .trombi-view .trombi-name  { font-size: 8px !important; margin-top: 3px !important; }
-          .trombi-view .trombi-sub   { font-size: 7px !important; }
+          .trombi-view .trombi-name  { font-size: 10px !important; margin-top: 3px !important; }
+          .trombi-view .trombi-sub   { font-size: 9px !important; }
           .trombi-view .trombi-spec  { display: none !important; }
 
           /* Qualifications : portrait A3, TOUT en une seule page, pas de saut */
@@ -931,10 +931,10 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                               {initials(p)}
                             </div>
                           )}
-                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "9.5px", lineHeight: 1.2, textAlign: "center" }}>
+                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "11px", lineHeight: 1.2, textAlign: "center" }}>
                             {p.prenom}<br />{p.nom}
                           </span>
-                          <span style={{ color: "#94a3b8", fontSize: "8px" }}>{p.matricule}</span>
+                          <span style={{ color: "#94a3b8", fontSize: "9px" }}>{p.matricule}</span>
                         </div>
                       </th>
                     ))}
@@ -952,7 +952,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                           </td>
                         )}
                         {/* Intitulé mission */}
-                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "9px", background: "#fafafa", height: 22 }}>
+                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "11px", background: "#fafafa", height: 22 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {/* Rond couleur cliquable en mode édition */}
                             <button
