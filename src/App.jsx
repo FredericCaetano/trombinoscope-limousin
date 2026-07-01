@@ -205,7 +205,6 @@ const normalizePersonne = (p) => ({
   photoUrl:    p.photo_url  ?? p.photoUrl  ?? null,
   specialites: p.specialites ?? '',
 });
-
 async function uploadPhoto(personneId, base64DataUrl) {
   const blob = await (await fetch(base64DataUrl)).blob();
   const path = `${personneId}.jpg`;
@@ -230,39 +229,44 @@ const INITIAL_ORDERED_IDS = [...INITIAL_QUALIF_ITEMS]
   .map((it) => it.id);
 
 export default function App() {
-  const [loading, setLoading]           = useState(true);
-  const [saving,  setSaving]            = useState(false);
-  const [lastSaved, setLastSaved]       = useState(null);
-  const [personnes, setPersonnes]       = useState([]);
-  const [pq, setPq]                     = useState({});
-  const [qualifItems, setQualifItems]   = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [saving,  setSaving]          = useState(false);
+  const [lastSaved, setLastSaved]     = useState(null);
+  const [personnes, setPersonnes]     = useState([]);
+  const [pq, setPq]                   = useState({});
+  const [qualifItems, setQualifItems] = useState([]);
   const [orderedItemIds, setOrderedItemIds] = useState([]);
   const [qualifSearch, setQualifSearch] = useState("");
-  const [view, setView]                 = useState("trombi");
+  const [view, setView]               = useState("trombi");
   const [agenceFilter, setAgenceFilter] = useState("toutes");
-  const [search, setSearch]             = useState("");
-  const [adminMode, setAdminMode]       = useState(false);
+  const [search, setSearch]           = useState("");
+  const [adminMode, setAdminMode]     = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [editingPersonne, setEditingPersonne] = useState(null);
-  const [addingItem,      setAddingItem]      = useState(false);
-  const [colorPickerFor,  setColorPickerFor]  = useState(null);
-  const [editingItem,     setEditingItem]     = useState(null);
+  const [addingItem,     setAddingItem]      = useState(false);
+  const [colorPickerFor, setColorPickerFor]  = useState(null);
+  const [editingItem,    setEditingItem]     = useState(null);
 
   const bpq = (rows) => { const m={}; (rows||[]).forEach(r=>{ if(!m[r.personne_id])m[r.personne_id]=[]; m[r.personne_id].push(r.item_id); }); return m; };
 
   useEffect(() => {
     async function loadAll() {
-      const [{data:p},{data:i},{data:q}] = await Promise.all([supabase.from('personnes').select('*'),supabase.from('qualif_items').select('*').order('position'),supabase.from('personne_qualifications').select('*')]);
-      setPersonnes((p||[]).map(normalizePersonne)); setQualifItems(i||[]); setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
+      const [{data:p},{data:i},{data:q}] = await Promise.all([
+        supabase.from('personnes').select('*'),
+        supabase.from('qualif_items').select('*').order('position'),
+        supabase.from('personne_qualifications').select('*'),
+      ]);
+      setPersonnes((p||[]).map(normalizePersonne)); setQualifItems(i||[]);
+      setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
     }
     loadAll();
   }, []);
 
   useEffect(() => {
     const ch = supabase.channel('trombi-rt')
-      .on('postgres_changes',{event:'*',schema:'public',table:'personnes'},async()=>{ const{data}=await supabase.from('personnes').select('*'); setPersonnes((data||[]).map(normalizePersonne)); })
-      .on('postgres_changes',{event:'*',schema:'public',table:'qualif_items'},async()=>{ const{data}=await supabase.from('qualif_items').select('*').order('position'); setQualifItems(data||[]); setOrderedItemIds((data||[]).map(it=>it.id)); })
-      .on('postgres_changes',{event:'*',schema:'public',table:'personne_qualifications'},async()=>{ const{data}=await supabase.from('personne_qualifications').select('*'); setPq(bpq(data)); })
+      .on('postgres_changes',{event:'*',schema:'public',table:'personnes'},async()=>{const{data}=await supabase.from('personnes').select('*');setPersonnes((data||[]).map(normalizePersonne));})
+      .on('postgres_changes',{event:'*',schema:'public',table:'qualif_items'},async()=>{const{data}=await supabase.from('qualif_items').select('*').order('position');setQualifItems(data||[]);setOrderedItemIds((data||[]).map(it=>it.id));})
+      .on('postgres_changes',{event:'*',schema:'public',table:'personne_qualifications'},async()=>{const{data}=await supabase.from('personne_qualifications').select('*');setPq(bpq(data));})
       .subscribe();
     return ()=>supabase.removeChannel(ch);
   }, []);
@@ -289,70 +293,39 @@ export default function App() {
     else{const id=data.id||`p${Date.now()}`;const np={...norm,id};const{photoUrl:_,agenceId:__,...ins}=np;setPersonnes(prev=>[...prev,np]);setPq(prev=>({...prev,[id]:[]}));await supabase.from('personnes').insert(ins);}
     markSaved();setEditingPersonne(null);
   }
-
-  async function deletePersonne(id) {
-    setPersonnes(prev=>prev.filter(p=>p.id!==id));setPq(prev=>{const n={...prev};delete n[id];return n;});
-    setSaving(true);await supabase.from('personnes').delete().eq('id',id);markSaved();
-  }
-
-  async function updatePersonPhoto(id,base64DataUrl){
-    setSaving(true);
-    try{const photoUrl=await uploadPhoto(id,base64DataUrl);await supabase.from('personnes').update({photo_url:photoUrl}).eq('id',id);setPersonnes(prev=>prev.map(p=>p.id===id?{...p,photo_url:photoUrl,photoUrl}:p));}
-    catch(e){console.error('Photo error:',e);}
-    markSaved();
-  }
-
-  async function toggleItem(personneId,itemId){
-    const held=(pq[personneId]??[]).includes(itemId);
-    setPq(prev=>({...prev,[personneId]:held?(prev[personneId]??[]).filter(x=>x!==itemId):[...(prev[personneId]??[]),itemId]}));
-    setSaving(true);
-    if(held)await supabase.from('personne_qualifications').delete().match({personne_id:personneId,item_id:itemId});
-    else await supabase.from('personne_qualifications').insert({personne_id:personneId,item_id:itemId});
-    markSaved();
-  }
-
+  async function deletePersonne(id){setPersonnes(prev=>prev.filter(p=>p.id!==id));setPq(prev=>{const n={...prev};delete n[id];return n;});setSaving(true);await supabase.from('personnes').delete().eq('id',id);markSaved();}
+  async function updatePersonPhoto(id,b64){setSaving(true);try{const url=await uploadPhoto(id,b64);await supabase.from('personnes').update({photo_url:url}).eq('id',id);setPersonnes(prev=>prev.map(p=>p.id===id?{...p,photo_url:url,photoUrl:url}:p));}catch(e){console.error(e);}markSaved();}
+  async function toggleItem(pid,iid){const held=(pq[pid]??[]).includes(iid);setPq(prev=>({...prev,[pid]:held?(prev[pid]??[]).filter(x=>x!==iid):[...(prev[pid]??[]),iid]}));setSaving(true);if(held)await supabase.from('personne_qualifications').delete().match({personne_id:pid,item_id:iid});else await supabase.from('personne_qualifications').insert({personne_id:pid,item_id:iid});markSaved();}
   async function addQualifItem(catLabel,numero,libelle,color,insertAfterColor){
     const id=`q${Date.now()}`;const position=orderedItemIds.length;
     const ni={id,cat:'custom',cat_label:catLabel,catLabel,numero,libelle,color,position};
     setQualifItems(prev=>[...prev,ni]);
-    setOrderedItemIds(prev=>{
-      const iMap=Object.fromEntries([...qualifItems,ni].map(it=>[it.id,it]));
-      const lastIdx=insertAfterColor?prev.reduce((b,iid,i)=>iMap[iid]?.color===insertAfterColor?i:b,-1):-1;
-      const next=[...prev];next.splice(lastIdx>=0?lastIdx+1:next.length,0,id);return next;
-    });
+    setOrderedItemIds(prev=>{const iMap=Object.fromEntries([...qualifItems,ni].map(it=>[it.id,it]));const lastIdx=insertAfterColor?prev.reduce((b,iid,i)=>iMap[iid]?.color===insertAfterColor?i:b,-1):-1;const next=[...prev];next.splice(lastIdx>=0?lastIdx+1:next.length,0,id);return next;});
     setSaving(true);await supabase.from('qualif_items').insert({id,cat:'custom',cat_label:catLabel,numero,libelle,color,position});markSaved();setAddingItem(false);
   }
-
-  async function deleteQualifItem(itemId){
-    setQualifItems(prev=>prev.filter(it=>it.id!==itemId));setOrderedItemIds(prev=>prev.filter(id=>id!==itemId));
-    setPq(prev=>{const n={};for(const pid in prev)n[pid]=prev[pid].filter(id=>id!==itemId);return n;});
-    setSaving(true);await supabase.from('qualif_items').delete().eq('id',itemId);markSaved();
-  }
-
-  async function changeItemColor(itemId,color){
-    setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,color}:it));setColorPickerFor(null);
-    setSaving(true);await supabase.from('qualif_items').update({color}).eq('id',itemId);markSaved();
-  }
-
-  async function renameQualifItem(itemId,{cat,catLabel,numero,libelle,color}){
-    setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,cat:cat||it.cat,catLabel,cat_label:catLabel,numero,libelle,color:color||it.color}:it));
-    setEditingItem(null);setSaving(true);
-    await supabase.from('qualif_items').update({cat:cat||'custom',cat_label:catLabel,numero,libelle,color}).eq('id',itemId);markSaved();
-  }
-
-  async function moveItemBefore(dragId,targetId){
-    const next=orderedItemIds.filter(id=>id!==dragId);const idx=next.indexOf(targetId);next.splice(idx<0?next.length:idx,0,dragId);
-    setOrderedItemIds(next);setSaving(true);await Promise.all(next.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id)));markSaved();
-  }
-
-  async function moveCatBefore(dragColor,targetColor){
-    const iMap=Object.fromEntries(qualifItems.map(it=>[it.id,it]));const prev=[...orderedItemIds];
-    const dIds=prev.filter(id=>iMap[id]?.color===dragColor);const rest=prev.filter(id=>iMap[id]?.color!==dragColor);
-    const idx=rest.findIndex(id=>iMap[id]?.color===targetColor);rest.splice(idx<0?rest.length:idx,0,...dIds);
-    setOrderedItemIds(rest);setSaving(true);await Promise.all(rest.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id)));markSaved();
-  }
+  async function deleteQualifItem(itemId){setQualifItems(prev=>prev.filter(it=>it.id!==itemId));setOrderedItemIds(prev=>prev.filter(id=>id!==itemId));setPq(prev=>{const n={};for(const pid in prev)n[pid]=prev[pid].filter(id=>id!==itemId);return n;});setSaving(true);await supabase.from('qualif_items').delete().eq('id',itemId);markSaved();}
+  async function changeItemColor(itemId,color){setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,color}:it));setColorPickerFor(null);setSaving(true);await supabase.from('qualif_items').update({color}).eq('id',itemId);markSaved();}
+  async function renameQualifItem(itemId,{cat,catLabel,numero,libelle,color}){setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,cat:cat||it.cat,catLabel,cat_label:catLabel,numero,libelle,color:color||it.color}:it));setEditingItem(null);setSaving(true);await supabase.from('qualif_items').update({cat:cat||'custom',cat_label:catLabel,numero,libelle,color}).eq('id',itemId);markSaved();}
+  async function moveItemBefore(dragId,targetId){const next=orderedItemIds.filter(id=>id!==dragId);const idx=next.indexOf(targetId);next.splice(idx<0?next.length:idx,0,dragId);setOrderedItemIds(next);setSaving(true);await Promise.all(next.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id)));markSaved();}
+  async function moveCatBefore(dragColor,targetColor){const iMap=Object.fromEntries(qualifItems.map(it=>[it.id,it]));const prev=[...orderedItemIds];const dIds=prev.filter(id=>iMap[id]?.color===dragColor);const rest=prev.filter(id=>iMap[id]?.color!==dragColor);const idx=rest.findIndex(id=>iMap[id]?.color===targetColor);rest.splice(idx<0?rest.length:idx,0,...dIds);setOrderedItemIds(rest);setSaving(true);await Promise.all(rest.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id)));markSaved();}
 
   const agencesAffichees = (view === "qualifs" || view === "impression") ? AGENCES.filter((a) => a.id !== "direction") : AGENCES;
+
+  // Impression : orientation selon l'onglet, toutes les agences affichées, couleurs préservées
+  function handlePrint() {
+    const orientation = view === "trombi" ? "landscape" : "portrait";
+    const prev = agenceFilter;
+    // Afficher toutes les agences avant d'imprimer
+    setAgenceFilter("toutes");
+    const s = document.createElement("style");
+    s.id = "__print_page__";
+    s.textContent = `@media print { @page { size: A3 ${orientation}; margin: 5mm; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }`;
+    document.head.appendChild(s);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => { s.remove(); setAgenceFilter(prev); }, 300);
+    }, 150);
+  }
 
 
   if (loading) return (
@@ -368,42 +341,28 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans p-3 sm:p-6 print:p-0">
       <style>{`
         @media print {
-          @page { margin: 5mm; }
-          @page trombi-landscape { size: A3 landscape; margin: 8mm; }
-
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .no-print { display: none !important; }
           .print-only { display: block !important; }
 
-          /* Qualifications — A3 portrait, une agence par page */
-          .impression-page {
-            page-break-after: always;
-            page-break-inside: avoid;
-            zoom: 0.80;
-            transform-origin: top left;
-            border-radius: 0 !important;
-            border: none !important;
-          }
-          .impression-page:last-child { page-break-after: auto; }
-          .impression-page table { font-size: 6.5px !important; }
-          .impression-page tr { height: 11px !important; }
-          .impression-page td, .impression-page th { padding: 0px 3px !important; line-height: 1.1 !important; }
+          /* Trombinoscope : paysage A3, TOUT en une seule page, pas de saut */
+          .trombi-view { zoom: 0.68; transform-origin: top left; }
+          .trombi-agency-page { page-break-after: auto !important; break-after: auto !important; page-break-before: auto !important; }
+          .trombi-view .trombi-rail  { display: none !important; }
+          .trombi-view .trombi-card  { padding: 5px !important; }
+          .trombi-view .trombi-photo { width: 50px !important; height: 50px !important; font-size: 14px !important; }
+          .trombi-view .trombi-name  { font-size: 8px !important; margin-top: 3px !important; }
+          .trombi-view .trombi-sub   { font-size: 7px !important; }
+          .trombi-view .trombi-spec  { display: none !important; }
 
-          /* Trombinoscope — A3 paysage, une agence par page */
-          .trombi-view { zoom: 1; }
-          .trombi-agency-page {
-            page: trombi-landscape;
-            page-break-after: always;
-            break-after: page;
-            zoom: 0.75;
-            transform-origin: top left;
-          }
-          .trombi-agency-page:last-child { page-break-after: auto; break-after: auto; }
-          .trombi-view .trombi-rail { display: none !important; }
-          .trombi-view .trombi-card { padding: 6px !important; }
-          .trombi-view .trombi-photo { width: 60px !important; height: 60px !important; font-size: 16px !important; }
-          .trombi-view .trombi-name { font-size: 9px !important; margin-top: 4px !important; }
-          .trombi-view .trombi-sub  { font-size: 8px !important; }
-          .trombi-view .trombi-spec { display: none !important; }
+          /* Qualifications : portrait A3, TOUT en une seule page, pas de saut */
+          .impression-page { page-break-after: auto !important; break-after: auto !important; page-break-before: auto !important; }
+          .qualifs-print-wrapper { zoom: 0.70; transform-origin: top left; }
+          .qualifs-print-wrapper table  { font-size: 6.5px !important; }
+          .qualifs-print-wrapper tr     { height: 11px !important; }
+          .qualifs-print-wrapper td,
+          .qualifs-print-wrapper th     { padding: 0 3px !important; line-height: 1 !important; }
         }
         .print-only { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -452,7 +411,7 @@ export default function App() {
                 Rafraîchir
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={handlePrint}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white hover:bg-white/20 transition"
               >
                 <Printer size={16} /> Imprimer
@@ -559,23 +518,25 @@ export default function App() {
             onMoveCatBefore={moveCatBefore}
           />
         ) : (
-          <ImpressionView
-            agences={agencesAffichees}
-            personnes={filteredPersonnes}
-            items={qualifItems}
-            pq={pq}
-            orderedItemIds={orderedItemIds}
-            agenceFilter={agenceFilter}
-            adminMode={adminMode}
-            onToggle={toggleItem}
-            onAddItem={() => setAddingItem(true)}
-            onDeleteItem={deleteQualifItem}
-            onPickColor={setColorPickerFor}
-            onEditItem={setEditingItem}
-            onEdit={setEditingPersonne}
-            onDelete={deletePersonne}
-            onPhotoChange={updatePersonPhoto}
-          />
+          <div className="qualifs-print-wrapper">
+            <ImpressionView
+              agences={agencesAffichees}
+              personnes={filteredPersonnes}
+              items={qualifItems}
+              pq={pq}
+              orderedItemIds={orderedItemIds}
+              agenceFilter={agenceFilter}
+              adminMode={adminMode}
+              onToggle={toggleItem}
+              onAddItem={() => setAddingItem(true)}
+              onDeleteItem={deleteQualifItem}
+              onPickColor={setColorPickerFor}
+              onEditItem={setEditingItem}
+              onEdit={setEditingPersonne}
+              onDelete={deletePersonne}
+              onPhotoChange={updatePersonPhoto}
+            />
+          </div>
         )}
       </main>
 
@@ -874,7 +835,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
       {/* Bouton imprimer */}
       <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
         <button
-          onClick={() => window.print()}
+          onClick={handlePrint}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white", background: "linear-gradient(135deg,#1e3a5f,#2563eb)" }}
         >
           <Printer size={16} /> Imprimer en A3
@@ -1055,7 +1016,7 @@ function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, on
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-4 gap-4 print:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-5 gap-4 print:gap-2">
                 {liste.map((p) => (
                   <PersonCard key={p.id} personne={p} adminMode={adminMode} onEdit={onEdit} onDelete={onDelete} onPhotoChange={onPhotoChange} />
                 ))}
