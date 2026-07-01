@@ -205,6 +205,12 @@ const normalizePersonne = (p) => ({
   photoUrl:    p.photo_url  ?? p.photoUrl  ?? null,
   specialites: p.specialites ?? '',
 });
+
+const normalizeItem = (it) => ({
+  ...it,
+  catLabel: it.cat_label || it.catLabel || '',
+  cat:      it.cat       || 'custom',
+});
 async function uploadPhoto(personneId, base64DataUrl) {
   const blob = await (await fetch(base64DataUrl)).blob();
   const path = `${personneId}.jpg`;
@@ -256,7 +262,7 @@ export default function App() {
         supabase.from('qualif_items').select('*').order('position'),
         supabase.from('personne_qualifications').select('*'),
       ]);
-      setPersonnes((p||[]).map(normalizePersonne)); setQualifItems(i||[]);
+      setPersonnes((p||[]).map(normalizePersonne)); setQualifItems((i||[]).map(normalizeItem));
       setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
     }
     loadAll();
@@ -265,7 +271,7 @@ export default function App() {
   useEffect(() => {
     const ch = supabase.channel('trombi-rt')
       .on('postgres_changes',{event:'*',schema:'public',table:'personnes'},async()=>{const{data}=await supabase.from('personnes').select('*');setPersonnes((data||[]).map(normalizePersonne));})
-      .on('postgres_changes',{event:'*',schema:'public',table:'qualif_items'},async()=>{const{data}=await supabase.from('qualif_items').select('*').order('position');setQualifItems(data||[]);setOrderedItemIds((data||[]).map(it=>it.id));})
+      .on('postgres_changes',{event:'*',schema:'public',table:'qualif_items'},async()=>{const{data}=await supabase.from('qualif_items').select('*').order('position');setQualifItems((data||[]).map(normalizeItem));setOrderedItemIds((data||[]).map(it=>it.id));})
       .on('postgres_changes',{event:'*',schema:'public',table:'personne_qualifications'},async()=>{const{data}=await supabase.from('personne_qualifications').select('*');setPq(bpq(data));})
       .subscribe();
     return ()=>supabase.removeChannel(ch);
@@ -274,7 +280,7 @@ export default function App() {
   async function rafraichir() {
     setLoading(true);
     const [{data:p},{data:i},{data:q}] = await Promise.all([supabase.from('personnes').select('*'),supabase.from('qualif_items').select('*').order('position'),supabase.from('personne_qualifications').select('*')]);
-    setPersonnes((p||[]).map(normalizePersonne)); setQualifItems(i||[]); setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
+    setPersonnes((p||[]).map(normalizePersonne)); setQualifItems((i||[]).map(normalizeItem)); setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
   }
 
   const filteredPersonnes = useMemo(() => personnes.filter(p => {
