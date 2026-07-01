@@ -252,13 +252,8 @@ export default function App() {
 
   useEffect(() => {
     async function loadAll() {
-      const [{data:p},{data:i},{data:q}] = await Promise.all([
-        supabase.from('personnes').select('*'),
-        supabase.from('qualif_items').select('*').order('position'),
-        supabase.from('personne_qualifications').select('*'),
-      ]);
-      setPersonnes((p||[]).map(normalizePersonne)); setQualifItems(i||[]);
-      setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
+      const [{data:p},{data:i},{data:q}] = await Promise.all([supabase.from('personnes').select('*'),supabase.from('qualif_items').select('*').order('position'),supabase.from('personne_qualifications').select('*')]);
+      setPersonnes((p||[]).map(normalizePersonne)); setQualifItems(i||[]); setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
     }
     loadAll();
   }, []);
@@ -288,74 +283,73 @@ export default function App() {
 
   async function savePersonne(data) {
     setSaving(true);
-    const norm = { ...data, agence_id: data.agenceId||data.agence_id||'brive' };
-    const { photoUrl, agenceId, ...dbData } = norm;
-    if (data.id && personnes.find(p=>p.id===data.id)) {
-      setPersonnes(prev=>prev.map(p=>p.id===data.id?{...p,...norm}:p));
-      await supabase.from('personnes').update(dbData).eq('id',data.id);
-    } else {
-      const id=data.id||`p${Date.now()}`; const np={...norm,id}; const{photoUrl:_,agenceId:__,...ins}=np;
-      setPersonnes(prev=>[...prev,np]); setPq(prev=>({...prev,[id]:[]}));
-      await supabase.from('personnes').insert(ins);
-    }
-    markSaved(); setEditingPersonne(null);
+    const norm={...data,agence_id:data.agenceId||data.agence_id||'brive'};
+    const{photoUrl,agenceId,...dbData}=norm;
+    if(data.id&&personnes.find(p=>p.id===data.id)){setPersonnes(prev=>prev.map(p=>p.id===data.id?{...p,...norm}:p));await supabase.from('personnes').update(dbData).eq('id',data.id);}
+    else{const id=data.id||`p${Date.now()}`;const np={...norm,id};const{photoUrl:_,agenceId:__,...ins}=np;setPersonnes(prev=>[...prev,np]);setPq(prev=>({...prev,[id]:[]}));await supabase.from('personnes').insert(ins);}
+    markSaved();setEditingPersonne(null);
   }
 
   async function deletePersonne(id) {
-    setPersonnes(prev=>prev.filter(p=>p.id!==id)); setPq(prev=>{const n={...prev};delete n[id];return n;});
-    setSaving(true); await supabase.from('personnes').delete().eq('id',id); markSaved();
+    setPersonnes(prev=>prev.filter(p=>p.id!==id));setPq(prev=>{const n={...prev};delete n[id];return n;});
+    setSaving(true);await supabase.from('personnes').delete().eq('id',id);markSaved();
   }
 
-  async function updatePersonPhoto(id, base64DataUrl) {
+  async function updatePersonPhoto(id,base64DataUrl){
     setSaving(true);
-    try { const photoUrl=await uploadPhoto(id,base64DataUrl); await supabase.from('personnes').update({photo_url:photoUrl}).eq('id',id); setPersonnes(prev=>prev.map(p=>p.id===id?{...p,photo_url:photoUrl,photoUrl}:p)); }
-    catch(e){ console.error('Photo error:',e); }
+    try{const photoUrl=await uploadPhoto(id,base64DataUrl);await supabase.from('personnes').update({photo_url:photoUrl}).eq('id',id);setPersonnes(prev=>prev.map(p=>p.id===id?{...p,photo_url:photoUrl,photoUrl}:p));}
+    catch(e){console.error('Photo error:',e);}
     markSaved();
   }
 
-  async function toggleItem(personneId, itemId) {
+  async function toggleItem(personneId,itemId){
     const held=(pq[personneId]??[]).includes(itemId);
     setPq(prev=>({...prev,[personneId]:held?(prev[personneId]??[]).filter(x=>x!==itemId):[...(prev[personneId]??[]),itemId]}));
     setSaving(true);
-    if(held) await supabase.from('personne_qualifications').delete().match({personne_id:personneId,item_id:itemId});
+    if(held)await supabase.from('personne_qualifications').delete().match({personne_id:personneId,item_id:itemId});
     else await supabase.from('personne_qualifications').insert({personne_id:personneId,item_id:itemId});
     markSaved();
   }
 
-  async function addQualifItem(catLabel, numero, libelle, color) {
-    const id=`q${Date.now()}`; const position=orderedItemIds.length;
+  async function addQualifItem(catLabel,numero,libelle,color,insertAfterColor){
+    const id=`q${Date.now()}`;const position=orderedItemIds.length;
     const ni={id,cat:'custom',cat_label:catLabel,catLabel,numero,libelle,color,position};
-    setQualifItems(prev=>[...prev,ni]); setOrderedItemIds(prev=>[...prev,id]);
-    setSaving(true); await supabase.from('qualif_items').insert({id,cat:'custom',cat_label:catLabel,numero,libelle,color,position}); markSaved(); setAddingItem(false);
+    setQualifItems(prev=>[...prev,ni]);
+    setOrderedItemIds(prev=>{
+      const iMap=Object.fromEntries([...qualifItems,ni].map(it=>[it.id,it]));
+      const lastIdx=insertAfterColor?prev.reduce((b,iid,i)=>iMap[iid]?.color===insertAfterColor?i:b,-1):-1;
+      const next=[...prev];next.splice(lastIdx>=0?lastIdx+1:next.length,0,id);return next;
+    });
+    setSaving(true);await supabase.from('qualif_items').insert({id,cat:'custom',cat_label:catLabel,numero,libelle,color,position});markSaved();setAddingItem(false);
   }
 
-  async function deleteQualifItem(itemId) {
-    setQualifItems(prev=>prev.filter(it=>it.id!==itemId)); setOrderedItemIds(prev=>prev.filter(id=>id!==itemId));
+  async function deleteQualifItem(itemId){
+    setQualifItems(prev=>prev.filter(it=>it.id!==itemId));setOrderedItemIds(prev=>prev.filter(id=>id!==itemId));
     setPq(prev=>{const n={};for(const pid in prev)n[pid]=prev[pid].filter(id=>id!==itemId);return n;});
-    setSaving(true); await supabase.from('qualif_items').delete().eq('id',itemId); markSaved();
+    setSaving(true);await supabase.from('qualif_items').delete().eq('id',itemId);markSaved();
   }
 
-  async function changeItemColor(itemId, color) {
-    setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,color}:it)); setColorPickerFor(null);
-    setSaving(true); await supabase.from('qualif_items').update({color}).eq('id',itemId); markSaved();
+  async function changeItemColor(itemId,color){
+    setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,color}:it));setColorPickerFor(null);
+    setSaving(true);await supabase.from('qualif_items').update({color}).eq('id',itemId);markSaved();
   }
 
-  async function renameQualifItem(itemId, {cat,catLabel,numero,libelle}) {
-    setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,cat,catLabel,cat_label:catLabel,numero,libelle}:it));
-    setEditingItem(null); setSaving(true);
-    await supabase.from('qualif_items').update({cat,cat_label:catLabel,numero,libelle}).eq('id',itemId); markSaved();
+  async function renameQualifItem(itemId,{cat,catLabel,numero,libelle,color}){
+    setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,cat:cat||it.cat,catLabel,cat_label:catLabel,numero,libelle,color:color||it.color}:it));
+    setEditingItem(null);setSaving(true);
+    await supabase.from('qualif_items').update({cat:cat||'custom',cat_label:catLabel,numero,libelle,color}).eq('id',itemId);markSaved();
   }
 
-  async function moveItemBefore(dragId, targetId) {
-    const next=orderedItemIds.filter(id=>id!==dragId); const idx=next.indexOf(targetId); next.splice(idx<0?next.length:idx,0,dragId);
-    setOrderedItemIds(next); setSaving(true); await Promise.all(next.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id))); markSaved();
+  async function moveItemBefore(dragId,targetId){
+    const next=orderedItemIds.filter(id=>id!==dragId);const idx=next.indexOf(targetId);next.splice(idx<0?next.length:idx,0,dragId);
+    setOrderedItemIds(next);setSaving(true);await Promise.all(next.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id)));markSaved();
   }
 
-  async function moveCatBefore(dragColor, targetColor) {
-    const iMap=Object.fromEntries(qualifItems.map(it=>[it.id,it])); const prev=[...orderedItemIds];
-    const dIds=prev.filter(id=>iMap[id]?.color===dragColor); const rest=prev.filter(id=>iMap[id]?.color!==dragColor);
-    const idx=rest.findIndex(id=>iMap[id]?.color===targetColor); rest.splice(idx<0?rest.length:idx,0,...dIds);
-    setOrderedItemIds(rest); setSaving(true); await Promise.all(rest.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id))); markSaved();
+  async function moveCatBefore(dragColor,targetColor){
+    const iMap=Object.fromEntries(qualifItems.map(it=>[it.id,it]));const prev=[...orderedItemIds];
+    const dIds=prev.filter(id=>iMap[id]?.color===dragColor);const rest=prev.filter(id=>iMap[id]?.color!==dragColor);
+    const idx=rest.findIndex(id=>iMap[id]?.color===targetColor);rest.splice(idx<0?rest.length:idx,0,...dIds);
+    setOrderedItemIds(rest);setSaving(true);await Promise.all(rest.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id)));markSaved();
   }
 
   const agencesAffichees = (view === "qualifs" || view === "impression") ? AGENCES.filter((a) => a.id !== "direction") : AGENCES;
@@ -374,30 +368,41 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans p-3 sm:p-6 print:p-0">
       <style>{`
         @media print {
-          @page { size: A3 portrait; margin: 5mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { margin: 5mm; }
+          @page trombi-landscape { size: A3 landscape; margin: 8mm; }
+
           .no-print { display: none !important; }
           .print-only { display: block !important; }
+
+          /* Qualifications — A3 portrait, une agence par page */
           .impression-page {
             page-break-after: always;
             page-break-inside: avoid;
-            zoom: 0.85;
+            zoom: 0.80;
             transform-origin: top left;
             border-radius: 0 !important;
             border: none !important;
           }
           .impression-page:last-child { page-break-after: auto; }
-          .impression-page table { font-size: 7.5px !important; }
-          .impression-page tr { height: 15px !important; }
-          .impression-page td, .impression-page th { padding: 1px 4px !important; line-height: 1.2 !important; }
+          .impression-page table { font-size: 6.5px !important; }
+          .impression-page tr { height: 11px !important; }
+          .impression-page td, .impression-page th { padding: 0px 3px !important; line-height: 1.1 !important; }
 
-          /* Trombinoscope — A3 portrait, une seule page */
-          .trombi-view { zoom: 0.56; transform-origin: top left; }
+          /* Trombinoscope — A3 paysage, une agence par page */
+          .trombi-view { zoom: 1; }
+          .trombi-agency-page {
+            page: trombi-landscape;
+            page-break-after: always;
+            break-after: page;
+            zoom: 0.75;
+            transform-origin: top left;
+          }
+          .trombi-agency-page:last-child { page-break-after: auto; break-after: auto; }
           .trombi-view .trombi-rail { display: none !important; }
-          .trombi-view .trombi-card { padding: 4px !important; }
-          .trombi-view .trombi-photo { width: 48px !important; height: 48px !important; font-size: 13px !important; }
-          .trombi-view .trombi-name { font-size: 8px !important; margin-top: 4px !important; }
-          .trombi-view .trombi-sub  { font-size: 7px !important; }
+          .trombi-view .trombi-card { padding: 6px !important; }
+          .trombi-view .trombi-photo { width: 60px !important; height: 60px !important; font-size: 16px !important; }
+          .trombi-view .trombi-name { font-size: 9px !important; margin-top: 4px !important; }
+          .trombi-view .trombi-sub  { font-size: 8px !important; }
           .trombi-view .trombi-spec { display: none !important; }
         }
         .print-only { display: none; }
@@ -589,6 +594,7 @@ export default function App() {
       {editingItem && (
         <EditItemModal
           item={editingItem}
+          items={qualifItems}
           onClose={() => setEditingItem(null)}
           onSave={(updates) => renameQualifItem(editingItem.id, updates)}
         />
@@ -596,8 +602,10 @@ export default function App() {
 
       {addingItem && (
         <AddItemModal
+          items={qualifItems}
+          orderedItemIds={orderedItemIds}
           onClose={() => setAddingItem(false)}
-          onSave={(catLabel, numero, libelle, color) => addQualifItem(catLabel, numero, libelle, color)}
+          onSave={(catLabel, numero, libelle, color, insertAfterColor) => addQualifItem(catLabel, numero, libelle, color, insertAfterColor)}
         />
       )}
 
@@ -1031,23 +1039,23 @@ function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, on
           return ma.localeCompare(mb);
         });
         return (
-          <section key={agence.id} className="flex gap-0 print:break-inside-avoid">
+          <section key={agence.id} className="trombi-agency-page flex gap-0 print:block print:bg-white">
             <div
               className="trombi-rail hidden sm:flex items-center justify-center w-12 rounded-l-2xl text-white font-extrabold uppercase tracking-widest text-sm shrink-0"
               style={{ background: agence.rail, writingMode: "vertical-rl", transform: "rotate(180deg)" }}
             >
               {agence.nom}
             </div>
-            <div className="flex-1 bg-white rounded-2xl sm:rounded-l-none rounded-r-2xl border border-slate-200 p-6 print:p-3">
-              <div className="flex items-center justify-between mb-5 print:mb-2">
-                <h2 className="text-xl font-bold text-slate-800 sm:hidden">{agence.nom}</h2>
+            <div className="flex-1 bg-white rounded-2xl sm:rounded-l-none rounded-r-2xl border border-slate-200 p-6 print:p-2 print:border-none print:rounded-none">
+              <div className="flex items-center justify-between mb-5 print:mb-3">
+                <h2 className="text-xl font-bold print:block" style={{ color: agence.rail }}>{agence.nom} — Trombinoscope</h2>
                 {agence.id !== "direction" && (
                   <span className="ml-auto text-xs font-semibold text-slate-400 flex items-center gap-1 no-print">
                     <Users size={14} /> {liste.length} technicien{liste.length > 1 ? "s" : ""}
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-6 gap-4 print:gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-4 gap-4 print:gap-3">
                 {liste.map((p) => (
                   <PersonCard key={p.id} personne={p} adminMode={adminMode} onEdit={onEdit} onDelete={onDelete} onPhotoChange={onPhotoChange} />
                 ))}
@@ -1161,7 +1169,7 @@ function QualificationsView({ agences, personnes, items, pq, adminMode, orderedI
   }
 
   return (
-    <div className="space-y-10 print:space-y-2 trombi-view">
+    <div className="space-y-10 print:space-y-3">
       {/* Barre de recherche + bouton ajout */}
       <div className="flex items-center gap-3 flex-wrap no-print">
         <div className="relative flex-1 min-w-64">
@@ -1409,66 +1417,85 @@ function ColorSwatchPicker({ value, onChange }) {
   );
 }
 
-function AddItemModal({ onClose, onSave }) {
-  const [catLabel, setCatLabel] = useState("");
-  const [numero, setNumero] = useState("");
-  const [libelle, setLibelle] = useState("");
-  const [color, setColor] = useState(COLOR_PALETTE[0]);
+function AddItemModal({ items, orderedItemIds, onClose, onSave }) {
+  // Catégories existantes dans l'ordre d'affichage (par couleur)
+  const existingCats = useMemo(() => {
+    const seen = new Set(); const cats = [];
+    orderedItemIds.forEach((id) => {
+      const it = items.find((x) => x.id === id);
+      if (it && !seen.has(it.color)) { seen.add(it.color); cats.push({ color: it.color, catLabel: it.catLabel || it.cat_label || "" }); }
+    });
+    return cats;
+  }, [items, orderedItemIds]);
+
+  const [selectedCat, setSelectedCat] = useState("existing-0");
+  const [newCatLabel, setNewCatLabel] = useState("");
+  const [numero,   setNumero]   = useState("");
+  const [libelle,  setLibelle]  = useState("");
+  const [color,    setColor]    = useState(COLOR_PALETTE[0]);
+
+  const isNew = selectedCat === "__new__";
+  const activeCat = isNew ? { catLabel: newCatLabel, color } : existingCats[parseInt(selectedCat.replace("existing-",""))] || existingCats[0];
 
   function submit() {
-    if (!libelle.trim() || !catLabel.trim()) return;
-    onSave(catLabel.trim(), numero.trim(), libelle.trim(), color);
+    if (!libelle.trim()) return;
+    const cl = isNew ? newCatLabel.trim() : activeCat?.catLabel || "";
+    if (!cl) return;
+    onSave(cl, numero.trim(), libelle.trim(), isNew ? color : activeCat.color, isNew ? null : activeCat.color);
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-sm p-7 relative" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
-          <X size={18} />
-        </button>
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><X size={18} /></button>
         <h3 className="font-bold text-base mb-4" style={{ color: "#1e3a5f" }}>Nouvelle ligne mission</h3>
-
         <div className="space-y-3">
           <div>
             <label className="text-xs font-semibold text-slate-500">Catégorie</label>
-            <input
-              value={catLabel}
-              onChange={(e) => setCatLabel(e.target.value)}
-              placeholder="ex : Électricité réglementaire"
-              autoFocus
-              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-            />
+            <select value={selectedCat} onChange={(e) => setSelectedCat(e.target.value)} autoFocus
+              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm">
+              {existingCats.map((c, i) => (
+                <option key={i} value={`existing-${i}`}>{c.catLabel}</option>
+              ))}
+              <option value="__new__">➕ Nouvelle catégorie…</option>
+            </select>
           </div>
+          {isNew && (
+            <>
+              <div>
+                <label className="text-xs font-semibold text-slate-500">Nom de la nouvelle catégorie</label>
+                <input value={newCatLabel} onChange={(e) => setNewCatLabel(e.target.value)}
+                  placeholder="ex : Hydraulique spécial"
+                  className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 block mb-1.5">Couleur de la catégorie</label>
+                <ColorSwatchPicker value={color} onChange={setColor} />
+              </div>
+            </>
+          )}
+          {!isNew && activeCat && (
+            <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+              <span className="w-3 h-3 rounded-full shrink-0" style={{ background: activeCat.color }} />
+              La mission sera ajoutée dans la catégorie <strong className="text-slate-700 ml-1">{activeCat.catLabel}</strong>
+            </div>
+          )}
           <div>
             <label className="text-xs font-semibold text-slate-500">Numéro (optionnel)</label>
-            <input
-              value={numero}
-              onChange={(e) => setNumero(e.target.value)}
+            <input value={numero} onChange={(e) => setNumero(e.target.value)}
               placeholder="ex : 1, 2, 3.1…"
-              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-            />
+              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="text-xs font-semibold text-slate-500">Intitulé de la mission</label>
-            <input
-              value={libelle}
-              onChange={(e) => setLibelle(e.target.value)}
+            <input value={libelle} onChange={(e) => setLibelle(e.target.value)}
               placeholder="ex : Périodique"
               onKeyDown={(e) => e.key === "Enter" && submit()}
-              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-500 block mb-1.5">Couleur (détermine le regroupement)</label>
-            <ColorSwatchPicker value={color} onChange={setColor} />
+              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
-
-        <button
-          onClick={submit}
-          disabled={!libelle.trim() || !catLabel.trim()}
-          className="w-full mt-5 bg-blue-900 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-950 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
+        <button onClick={submit} disabled={!libelle.trim() || (isNew && !newCatLabel.trim())}
+          className="w-full mt-5 bg-blue-900 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-950 disabled:opacity-40 disabled:cursor-not-allowed">
           Ajouter la mission
         </button>
       </div>
@@ -1476,15 +1503,29 @@ function AddItemModal({ onClose, onSave }) {
   );
 }
 
-function EditItemModal({ item, onClose, onSave }) {
-  const [cat,      setCat]      = useState(item.cat      || "");
-  const [catLabel, setCatLabel] = useState(item.catLabel || item.cat_label || "");
+function EditItemModal({ item, items, onClose, onSave }) {
+  // Catégories existantes
+  const existingCats = useMemo(() => {
+    const seen = new Set(); const cats = [];
+    items.forEach((it) => {
+      if (!seen.has(it.color)) { seen.add(it.color); cats.push({ color: it.color, catLabel: it.catLabel || it.cat_label || "", cat: it.cat || "" }); }
+    });
+    return cats;
+  }, [items]);
+
+  const currentCatIdx = existingCats.findIndex((c) => c.color === item.color);
+  const [selectedCat, setSelectedCat] = useState(currentCatIdx >= 0 ? `existing-${currentCatIdx}` : "existing-0");
+  const [newCatLabel, setNewCatLabel] = useState("");
   const [numero,   setNumero]   = useState(item.numero   || "");
   const [libelle,  setLibelle]  = useState(item.libelle  || "");
+  const [newColor, setNewColor] = useState(COLOR_PALETTE[0]);
+
+  const isNew = selectedCat === "__new__";
+  const activeCat = isNew ? { catLabel: newCatLabel, color: newColor, cat: "" } : existingCats[parseInt(selectedCat.replace("existing-",""))] || existingCats[0];
 
   function submit() {
     if (!libelle.trim()) return;
-    onSave({ cat: cat.trim(), catLabel: catLabel.trim(), numero: numero.trim(), libelle: libelle.trim() });
+    onSave({ cat: activeCat?.cat || "custom", catLabel: isNew ? newCatLabel.trim() : activeCat?.catLabel || "", numero: numero.trim(), libelle: libelle.trim(), color: isNew ? newColor : activeCat?.color || item.color });
     onClose();
   }
 
@@ -1494,37 +1535,44 @@ function EditItemModal({ item, onClose, onSave }) {
         <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><X size={18} /></button>
         <h3 className="font-bold text-base mb-4" style={{ color: "#1e3a5f" }}>Modifier la mission</h3>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Code (ex : ELE-REG)</label>
-              <input value={cat} onChange={(e) => setCat(e.target.value)} autoFocus
-                placeholder="ELE-REG"
-                className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono uppercase" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Numéro</label>
-              <input value={numero} onChange={(e) => setNumero(e.target.value)}
-                placeholder="1, 2, 3.1…"
-                className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
-            </div>
-          </div>
           <div>
             <label className="text-xs font-semibold text-slate-500">Catégorie</label>
-            <input value={catLabel} onChange={(e) => setCatLabel(e.target.value)}
-              placeholder="Électricité réglementaire"
+            <select value={selectedCat} onChange={(e) => setSelectedCat(e.target.value)} autoFocus
+              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm">
+              {existingCats.map((c, i) => (
+                <option key={i} value={`existing-${i}`}>{c.catLabel}</option>
+              ))}
+              <option value="__new__">➕ Nouvelle catégorie…</option>
+            </select>
+          </div>
+          {isNew && (
+            <>
+              <div>
+                <label className="text-xs font-semibold text-slate-500">Nom de la nouvelle catégorie</label>
+                <input value={newCatLabel} onChange={(e) => setNewCatLabel(e.target.value)} placeholder="Nouvelle catégorie"
+                  className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 block mb-1.5">Couleur</label>
+                <ColorSwatchPicker value={newColor} onChange={setNewColor} />
+              </div>
+            </>
+          )}
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Numéro</label>
+            <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="1, 2, 3.1…"
               className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="text-xs font-semibold text-slate-500">Intitulé de la mission</label>
-            <input value={libelle} onChange={(e) => setLibelle(e.target.value)}
-              placeholder="Périodique"
+            <input value={libelle} onChange={(e) => setLibelle(e.target.value)} placeholder="Périodique"
               onKeyDown={(e) => e.key === "Enter" && submit()}
               className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
         <div className="flex gap-3 mt-5">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
-          <button onClick={submit} disabled={!libelle.trim()}
+          <button onClick={submit} disabled={!libelle.trim() || (isNew && !newCatLabel.trim())}
             className="flex-1 py-2.5 rounded-xl bg-blue-900 text-white text-sm font-semibold hover:bg-blue-950 disabled:opacity-40">
             Enregistrer
           </button>
