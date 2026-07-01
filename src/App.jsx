@@ -925,9 +925,9 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                             </div>
                           )}
                           {p.photo_url || p.photoUrl ? (
-                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 82, height: 82, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
+                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 102, height: 102, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
                           ) : (
-                            <div style={{ width: 82, height: 82, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 16 }}>
+                            <div style={{ width: 102, height: 102, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 16 }}>
                               {initials(p)}
                             </div>
                           )}
