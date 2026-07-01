@@ -246,181 +246,116 @@ export default function App() {
   const [editingPersonne, setEditingPersonne] = useState(null);
   const [addingItem,      setAddingItem]      = useState(false);
   const [colorPickerFor,  setColorPickerFor]  = useState(null);
+  const [editingItem,     setEditingItem]     = useState(null);
 
-  const buildPqMap = (rows) => {
-    const map = {};
-    (rows || []).forEach((r) => {
-      if (!map[r.personne_id]) map[r.personne_id] = [];
-      map[r.personne_id].push(r.item_id);
-    });
-    return map;
-  };
+  const bpq = (rows) => { const m={}; (rows||[]).forEach(r=>{ if(!m[r.personne_id])m[r.personne_id]=[]; m[r.personne_id].push(r.item_id); }); return m; };
 
   useEffect(() => {
     async function loadAll() {
-      const [{ data: p }, { data: i }, { data: q }] = await Promise.all([
+      const [{data:p},{data:i},{data:q}] = await Promise.all([
         supabase.from('personnes').select('*'),
         supabase.from('qualif_items').select('*').order('position'),
         supabase.from('personne_qualifications').select('*'),
       ]);
-      setPersonnes((p || []).map(normalizePersonne));
-      setQualifItems(i || []);
-      setOrderedItemIds((i || []).map((it) => it.id));
-      setPq(buildPqMap(q));
-      setLoading(false);
+      setPersonnes((p||[]).map(normalizePersonne)); setQualifItems(i||[]);
+      setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
     }
     loadAll();
   }, []);
 
   useEffect(() => {
     const ch = supabase.channel('trombi-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'personnes' }, async () => {
-        const { data } = await supabase.from('personnes').select('*');
-        setPersonnes((data || []).map(normalizePersonne));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'qualif_items' }, async () => {
-        const { data } = await supabase.from('qualif_items').select('*').order('position');
-        setQualifItems(data || []); setOrderedItemIds((data || []).map((it) => it.id));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'personne_qualifications' }, async () => {
-        const { data } = await supabase.from('personne_qualifications').select('*');
-        setPq(buildPqMap(data));
-      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'personnes'},async()=>{ const{data}=await supabase.from('personnes').select('*'); setPersonnes((data||[]).map(normalizePersonne)); })
+      .on('postgres_changes',{event:'*',schema:'public',table:'qualif_items'},async()=>{ const{data}=await supabase.from('qualif_items').select('*').order('position'); setQualifItems(data||[]); setOrderedItemIds((data||[]).map(it=>it.id)); })
+      .on('postgres_changes',{event:'*',schema:'public',table:'personne_qualifications'},async()=>{ const{data}=await supabase.from('personne_qualifications').select('*'); setPq(bpq(data)); })
       .subscribe();
-    return () => supabase.removeChannel(ch);
+    return ()=>supabase.removeChannel(ch);
   }, []);
 
   async function rafraichir() {
     setLoading(true);
-    const [{ data: p }, { data: i }, { data: q }] = await Promise.all([
-      supabase.from('personnes').select('*'),
-      supabase.from('qualif_items').select('*').order('position'),
-      supabase.from('personne_qualifications').select('*'),
-    ]);
-    setPersonnes((p || []).map(normalizePersonne));
-    setQualifItems(i || []); setOrderedItemIds((i || []).map((it) => it.id));
-    setPq(buildPqMap(q)); setLoading(false);
+    const [{data:p},{data:i},{data:q}] = await Promise.all([supabase.from('personnes').select('*'),supabase.from('qualif_items').select('*').order('position'),supabase.from('personne_qualifications').select('*')]);
+    setPersonnes((p||[]).map(normalizePersonne)); setQualifItems(i||[]); setOrderedItemIds((i||[]).map(it=>it.id)); setPq(bpq(q)); setLoading(false);
   }
 
-  const filteredPersonnes = useMemo(() => {
-    return personnes.filter((p) => {
-      const matchAgence = agenceFilter === "toutes" || p.agenceId === agenceFilter;
-      const q = search.trim().toLowerCase();
-      const matchSearch = !q || `${p.prenom} ${p.nom} ${p.poste}`.toLowerCase().includes(q);
-      return matchAgence && matchSearch;
-    });
-  }, [personnes, agenceFilter, search]);
+  const filteredPersonnes = useMemo(() => personnes.filter(p => {
+    const ma = agenceFilter==="toutes" || p.agenceId===agenceFilter;
+    const q = search.trim().toLowerCase();
+    return ma && (!q||`${p.prenom} ${p.nom} ${p.poste}`.toLowerCase().includes(q));
+  }), [personnes,agenceFilter,search]);
 
   function markSaved() { setLastSaved(new Date()); setSaving(false); }
 
   async function savePersonne(data) {
     setSaving(true);
-    const normalized = { ...data, agence_id: data.agenceId || data.agence_id || 'brive' };
-    const { photoUrl, agenceId, ...dbData } = normalized;
-    if (data.id && personnes.find((p) => p.id === data.id)) {
-      // Mise à jour locale immédiate
-      setPersonnes((prev) => prev.map((p) => p.id === data.id ? { ...p, ...normalized } : p));
-      await supabase.from('personnes').update(dbData).eq('id', data.id);
+    const norm = { ...data, agence_id: data.agenceId||data.agence_id||'brive' };
+    const { photoUrl, agenceId, ...dbData } = norm;
+    if (data.id && personnes.find(p=>p.id===data.id)) {
+      setPersonnes(prev=>prev.map(p=>p.id===data.id?{...p,...norm}:p));
+      await supabase.from('personnes').update(dbData).eq('id',data.id);
     } else {
-      const id = data.id || `p${Date.now()}`;
-      const newP = { ...normalized, id };
-      const { photoUrl: _, agenceId: __, ...insertData } = newP;
-      // Mise à jour locale immédiate
-      setPersonnes((prev) => [...prev, newP]);
-      setPq((prev) => ({ ...prev, [id]: [] }));
-      await supabase.from('personnes').insert(insertData);
+      const id=data.id||`p${Date.now()}`; const np={...norm,id}; const{photoUrl:_,agenceId:__,...ins}=np;
+      setPersonnes(prev=>[...prev,np]); setPq(prev=>({...prev,[id]:[]}));
+      await supabase.from('personnes').insert(ins);
     }
     markSaved(); setEditingPersonne(null);
   }
 
   async function deletePersonne(id) {
-    // Mise à jour locale immédiate
-    setPersonnes((prev) => prev.filter((p) => p.id !== id));
-    setPq((prev) => { const next = { ...prev }; delete next[id]; return next; });
-    setSaving(true);
-    await supabase.from('personnes').delete().eq('id', id);
-    markSaved();
+    setPersonnes(prev=>prev.filter(p=>p.id!==id)); setPq(prev=>{const n={...prev};delete n[id];return n;});
+    setSaving(true); await supabase.from('personnes').delete().eq('id',id); markSaved();
   }
 
   async function updatePersonPhoto(id, base64DataUrl) {
     setSaving(true);
-    try {
-      const photoUrl = await uploadPhoto(id, base64DataUrl);
-      await supabase.from('personnes').update({ photo_url: photoUrl }).eq('id', id);
-      setPersonnes((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: photoUrl, photoUrl } : p));
-    } catch (e) { console.error('Photo upload error:', e); }
+    try { const photoUrl=await uploadPhoto(id,base64DataUrl); await supabase.from('personnes').update({photo_url:photoUrl}).eq('id',id); setPersonnes(prev=>prev.map(p=>p.id===id?{...p,photo_url:photoUrl,photoUrl}:p)); }
+    catch(e){ console.error('Photo error:',e); }
     markSaved();
   }
 
   async function toggleItem(personneId, itemId) {
-    const held = (pq[personneId] ?? []).includes(itemId);
-    // Mise à jour locale immédiate
-    setPq((prev) => {
-      const current = prev[personneId] ?? [];
-      const next = held ? current.filter((x) => x !== itemId) : [...current, itemId];
-      return { ...prev, [personneId]: next };
-    });
+    const held=(pq[personneId]??[]).includes(itemId);
+    setPq(prev=>({...prev,[personneId]:held?(prev[personneId]??[]).filter(x=>x!==itemId):[...(prev[personneId]??[]),itemId]}));
     setSaving(true);
-    if (held) {
-      await supabase.from('personne_qualifications').delete().match({ personne_id: personneId, item_id: itemId });
-    } else {
-      await supabase.from('personne_qualifications').insert({ personne_id: personneId, item_id: itemId });
-    }
+    if(held) await supabase.from('personne_qualifications').delete().match({personne_id:personneId,item_id:itemId});
+    else await supabase.from('personne_qualifications').insert({personne_id:personneId,item_id:itemId});
     markSaved();
   }
 
   async function addQualifItem(catLabel, numero, libelle, color) {
-    const id = `q${Date.now()}`;
-    const position = orderedItemIds.length;
-    const newItem = { id, cat: 'custom', cat_label: catLabel, catLabel, numero, libelle, color, position };
-    // Mise à jour locale immédiate
-    setQualifItems((prev) => [...prev, newItem]);
-    setOrderedItemIds((prev) => [...prev, id]);
-    setSaving(true);
-    await supabase.from('qualif_items').insert({ id, cat: 'custom', cat_label: catLabel, numero, libelle, color, position });
-    markSaved(); setAddingItem(false);
+    const id=`q${Date.now()}`; const position=orderedItemIds.length;
+    const ni={id,cat:'custom',cat_label:catLabel,catLabel,numero,libelle,color,position};
+    setQualifItems(prev=>[...prev,ni]); setOrderedItemIds(prev=>[...prev,id]);
+    setSaving(true); await supabase.from('qualif_items').insert({id,cat:'custom',cat_label:catLabel,numero,libelle,color,position}); markSaved(); setAddingItem(false);
   }
 
   async function deleteQualifItem(itemId) {
-    // Mise à jour locale immédiate
-    setQualifItems((prev) => prev.filter((it) => it.id !== itemId));
-    setOrderedItemIds((prev) => prev.filter((id) => id !== itemId));
-    setPq((prev) => { const next = {}; for (const pid in prev) next[pid] = prev[pid].filter((id) => id !== itemId); return next; });
-    setSaving(true);
-    await supabase.from('qualif_items').delete().eq('id', itemId);
-    markSaved();
+    setQualifItems(prev=>prev.filter(it=>it.id!==itemId)); setOrderedItemIds(prev=>prev.filter(id=>id!==itemId));
+    setPq(prev=>{const n={};for(const pid in prev)n[pid]=prev[pid].filter(id=>id!==itemId);return n;});
+    setSaving(true); await supabase.from('qualif_items').delete().eq('id',itemId); markSaved();
   }
 
   async function changeItemColor(itemId, color) {
-    // Mise à jour locale immédiate
-    setQualifItems((prev) => prev.map((it) => it.id === itemId ? { ...it, color } : it));
-    setColorPickerFor(null);
-    setSaving(true);
-    await supabase.from('qualif_items').update({ color }).eq('id', itemId);
-    markSaved();
+    setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,color}:it)); setColorPickerFor(null);
+    setSaving(true); await supabase.from('qualif_items').update({color}).eq('id',itemId); markSaved();
+  }
+
+  async function renameQualifItem(itemId, {cat,catLabel,numero,libelle}) {
+    setQualifItems(prev=>prev.map(it=>it.id===itemId?{...it,cat,catLabel,cat_label:catLabel,numero,libelle}:it));
+    setEditingItem(null); setSaving(true);
+    await supabase.from('qualif_items').update({cat,cat_label:catLabel,numero,libelle}).eq('id',itemId); markSaved();
   }
 
   async function moveItemBefore(dragId, targetId) {
-    const next = orderedItemIds.filter((id) => id !== dragId);
-    const idx = next.indexOf(targetId);
-    next.splice(idx < 0 ? next.length : idx, 0, dragId);
-    setOrderedItemIds(next);
-    setSaving(true);
-    await Promise.all(next.map((id, pos) => supabase.from('qualif_items').update({ position: pos }).eq('id', id)));
-    markSaved();
+    const next=orderedItemIds.filter(id=>id!==dragId); const idx=next.indexOf(targetId); next.splice(idx<0?next.length:idx,0,dragId);
+    setOrderedItemIds(next); setSaving(true); await Promise.all(next.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id))); markSaved();
   }
 
   async function moveCatBefore(dragColor, targetColor) {
-    const itemMap = Object.fromEntries(qualifItems.map((it) => [it.id, it]));
-    const prev = [...orderedItemIds];
-    const dragIds = prev.filter((id) => itemMap[id]?.color === dragColor);
-    const rest    = prev.filter((id) => itemMap[id]?.color !== dragColor);
-    const idx = rest.findIndex((id) => itemMap[id]?.color === targetColor);
-    rest.splice(idx < 0 ? rest.length : idx, 0, ...dragIds);
-    setOrderedItemIds(rest);
-    setSaving(true);
-    await Promise.all(rest.map((id, pos) => supabase.from('qualif_items').update({ position: pos }).eq('id', id)));
-    markSaved();
+    const iMap=Object.fromEntries(qualifItems.map(it=>[it.id,it])); const prev=[...orderedItemIds];
+    const dIds=prev.filter(id=>iMap[id]?.color===dragColor); const rest=prev.filter(id=>iMap[id]?.color!==dragColor);
+    const idx=rest.findIndex(id=>iMap[id]?.color===targetColor); rest.splice(idx<0?rest.length:idx,0,...dIds);
+    setOrderedItemIds(rest); setSaving(true); await Promise.all(rest.map((id,pos)=>supabase.from('qualif_items').update({position:pos}).eq('id',id))); markSaved();
   }
 
   const agencesAffichees = (view === "qualifs" || view === "impression") ? AGENCES.filter((a) => a.id !== "direction") : AGENCES;
@@ -446,16 +381,15 @@ export default function App() {
           .impression-page {
             page-break-after: always;
             page-break-inside: avoid;
-            zoom: 0.58;
+            zoom: 0.52;
             transform-origin: top left;
             border-radius: 0 !important;
             border: none !important;
-            box-shadow: none !important;
           }
           .impression-page:last-child { page-break-after: auto; }
-          .impression-page table { font-size: 7px !important; }
-          .impression-page tr { height: 14px !important; }
-          .impression-page td, .impression-page th { padding: 1px 4px !important; }
+          .impression-page table { font-size: 6.5px !important; }
+          .impression-page tr { height: 12px !important; }
+          .impression-page td, .impression-page th { padding: 0px 3px !important; line-height: 1.1 !important; }
         }
         .print-only { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -606,6 +540,7 @@ export default function App() {
             onAddItem={() => setAddingItem(true)}
             onDeleteItem={deleteQualifItem}
             onPickColor={setColorPickerFor}
+            onEditItem={setEditingItem}
             onMoveItemBefore={moveItemBefore}
             onMoveCatBefore={moveCatBefore}
           />
@@ -622,6 +557,7 @@ export default function App() {
             onAddItem={() => setAddingItem(true)}
             onDeleteItem={deleteQualifItem}
             onPickColor={setColorPickerFor}
+            onEditItem={setEditingItem}
             onEdit={setEditingPersonne}
             onDelete={deletePersonne}
             onPhotoChange={updatePersonPhoto}
@@ -638,6 +574,14 @@ export default function App() {
           personne={editingPersonne}
           onClose={() => setEditingPersonne(null)}
           onSave={savePersonne}
+        />
+      )}
+
+      {editingItem && (
+        <EditItemModal
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSave={(updates) => renameQualifItem(editingItem.id, updates)}
         />
       )}
 
@@ -858,7 +802,7 @@ function AvatarUpload({ personne, size = 64, editable, onChange }) {
    VUE IMPRESSION A3 — format fidèle au tableau Excel d'origine
    (code catégorie vertical | intitulé mission | cellule colorée par technicien)
 --------------------------------------------------------------- */
-function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceFilter, adminMode, onToggle, onAddItem, onDeleteItem, onPickColor, onEdit, onDelete, onPhotoChange }) {
+function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceFilter, adminMode, onToggle, onAddItem, onDeleteItem, onPickColor, onEditItem, onEdit, onDelete, onPhotoChange }) {
   const itemMap = useMemo(() => Object.fromEntries(items.map((it) => [it.id, it])), [items]);
 
   const orderedItems = useMemo(() =>
@@ -1005,7 +949,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                               whiteSpace: "nowrap",
                             }}
                           >
-                            {group.catLabel}
+                            {group.items[0]?.cat && group.items[0].cat !== "custom" ? group.items[0].cat : group.catLabel}
                           </td>
                         )}
                         {/* Intitulé mission */}
@@ -1021,6 +965,12 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                               <span style={{ color: "#94a3b8", marginRight: 4, fontSize: "8.5px" }}>{item.numero}</span>
                               {item.libelle}
                             </span>
+                            {/* Crayon renommage en mode édition */}
+                            {adminMode && (
+                              <button className="no-print" onClick={() => onEditItem(item)} title="Renommer" style={{ marginLeft: 4, background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", padding: 0, flexShrink: 0 }}>
+                                <Pencil size={10} />
+                              </button>
+                            )}
                             {/* Bouton suppression en mode édition */}
                             {adminMode && (
                               <button className="no-print" onClick={() => onDeleteItem(item.id)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", padding: 0, flexShrink: 0 }}>
@@ -1147,7 +1097,7 @@ function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange }) {
   );
 }
 
-function QualificationsView({ agences, personnes, items, pq, adminMode, orderedItemIds, qualifSearch, setQualifSearch, onToggle, onAddItem, onDeleteItem, onPickColor, onMoveItemBefore, onMoveCatBefore }) {
+function QualificationsView({ agences, personnes, items, pq, adminMode, orderedItemIds, qualifSearch, setQualifSearch, onToggle, onAddItem, onDeleteItem, onPickColor, onEditItem, onMoveItemBefore, onMoveCatBefore }) {
   const [dragItem, setDragItem] = useState(null);    // id de l'item en cours de drag
   const [dragCat,  setDragCat]  = useState(null);    // color du groupe en drag
   const [overItem, setOverItem] = useState(null);
@@ -1310,6 +1260,11 @@ function QualificationsView({ agences, personnes, items, pq, adminMode, orderedI
                                 <p className="font-semibold text-slate-700 text-sm leading-tight">{item.numero} {item.libelle}</p>
                               </div>
                               {adminMode && (
+                                <button onClick={() => onEditItem(item)} title="Renommer cette mission" className="no-print shrink-0 text-slate-300 hover:text-blue-500">
+                                  <Pencil size={12} />
+                                </button>
+                              )}
+                              {adminMode && (
                                 <button onClick={() => onDeleteItem(item.id)} className="no-print ml-auto shrink-0 text-slate-300 hover:text-red-500">
                                   <Trash2 size={13} />
                                 </button>
@@ -1355,7 +1310,16 @@ function QualificationsView({ agences, personnes, items, pq, adminMode, orderedI
 }
 
 function PersonneModal({ personne, onClose, onSave }) {
-  const [form, setForm] = useState(personne);
+  const [form, setForm] = useState({
+    ...personne,
+    agenceId: personne.agenceId || personne.agence_id || "brive",
+    specialites: personne.specialites || "",
+    telephone: personne.telephone || "",
+    email: personne.email || "",
+    matricule: personne.matricule || "",
+    ville: personne.ville || "",
+    poste: personne.poste || "",
+  });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   function handlePhoto(e) {
@@ -1377,7 +1341,7 @@ function PersonneModal({ personne, onClose, onSave }) {
         <div className="flex items-center gap-4 mb-4">
           <Avatar personne={form} size={56} />
           <label className="flex items-center gap-2 text-xs font-semibold text-cyan-700 border border-cyan-200 px-3 py-2 rounded-lg cursor-pointer hover:bg-cyan-50">
-            <Upload size={14} /> Choisir une photo
+            <Camera size={14} /> Choisir une photo
             <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
           </label>
         </div>
@@ -1393,7 +1357,7 @@ function PersonneModal({ personne, onClose, onSave }) {
           <Field label="Spécialités" value={form.specialites} onChange={set("specialites")} full />
           <div className="col-span-2">
             <label className="text-xs font-semibold text-slate-500">Agence</label>
-            <select value={form.agenceId} onChange={set("agenceId")} className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm">
+            <select value={form.agenceId || form.agence_id || "brive"} onChange={set("agenceId")} className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm">
               {AGENCES.map((a) => (
                 <option key={a.id} value={a.id}>{a.nom}</option>
               ))}
@@ -1504,6 +1468,64 @@ function AddItemModal({ onClose, onSave }) {
         >
           Ajouter la mission
         </button>
+      </div>
+    </div>
+  );
+}
+
+function EditItemModal({ item, onClose, onSave }) {
+  const [cat,      setCat]      = useState(item.cat      || "");
+  const [catLabel, setCatLabel] = useState(item.catLabel || item.cat_label || "");
+  const [numero,   setNumero]   = useState(item.numero   || "");
+  const [libelle,  setLibelle]  = useState(item.libelle  || "");
+
+  function submit() {
+    if (!libelle.trim()) return;
+    onSave({ cat: cat.trim(), catLabel: catLabel.trim(), numero: numero.trim(), libelle: libelle.trim() });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-sm p-7 relative" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><X size={18} /></button>
+        <h3 className="font-bold text-base mb-4" style={{ color: "#1e3a5f" }}>Modifier la mission</h3>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-500">Code (ex : ELE-REG)</label>
+              <input value={cat} onChange={(e) => setCat(e.target.value)} autoFocus
+                placeholder="ELE-REG"
+                className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono uppercase" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500">Numéro</label>
+              <input value={numero} onChange={(e) => setNumero(e.target.value)}
+                placeholder="1, 2, 3.1…"
+                className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Catégorie</label>
+            <input value={catLabel} onChange={(e) => setCatLabel(e.target.value)}
+              placeholder="Électricité réglementaire"
+              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Intitulé de la mission</label>
+            <input value={libelle} onChange={(e) => setLibelle(e.target.value)}
+              placeholder="Périodique"
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Annuler</button>
+          <button onClick={submit} disabled={!libelle.trim()}
+            className="flex-1 py-2.5 rounded-xl bg-blue-900 text-white text-sm font-semibold hover:bg-blue-950 disabled:opacity-40">
+            Enregistrer
+          </button>
+        </div>
       </div>
     </div>
   );
