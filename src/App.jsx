@@ -868,7 +868,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
       {/* Bouton imprimer */}
       <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
         <button
-          onClick={handlePrint}
+          onClick={() => window.print()}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white", background: "linear-gradient(135deg,#1e3a5f,#2563eb)" }}
         >
           <Printer size={16} /> Imprimer en A3
