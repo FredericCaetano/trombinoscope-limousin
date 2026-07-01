@@ -904,7 +904,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
               </div>
 
             {/* Tableau */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
                 {/* En-tête techniciens */}
                 <thead>
                   <tr>
@@ -931,10 +931,10 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                               {initials(p)}
                             </div>
                           )}
-                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "11px", lineHeight: 1.2, textAlign: "center" }}>
+                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "16px", lineHeight: 1.2, textAlign: "center" }}>
                             {p.prenom}<br />{p.nom}
                           </span>
-                          <span style={{ color: "#94a3b8", fontSize: "9px" }}>{p.matricule}</span>
+                          <span style={{ color: "#94a3b8", fontSize: "15px" }}>{p.matricule}</span>
                         </div>
                       </th>
                     ))}
@@ -952,7 +952,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                           </td>
                         )}
                         {/* Intitulé mission */}
-                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "11px", background: "#fafafa", height: 22 }}>
+                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "15px", background: "#fafafa", height: 22 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {/* Rond couleur cliquable en mode édition */}
                             <button
