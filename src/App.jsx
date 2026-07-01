@@ -9,6 +9,15 @@ const SOCOTEC_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABe8AAAWLCAMA
    (onglets "Trombinoscope agence Limousin", "Competences BRIVE", "Competences LIMOGES")
 --------------------------------------------------------------- */
 
+
+// Normalise les données Supabase (snake_case) vers camelCase
+const normalizePersonne = (p) => ({
+  ...p,
+  agenceId:   p.agence_id  ?? p.agenceId  ?? '',
+  photoUrl:   p.photo_url  ?? p.photoUrl  ?? null,
+  specialites: p.specialites ?? '',
+});
+
 const AGENCES = [
   { id: "direction", nom: "Direction", rail: "#1e3a5f" },
   { id: "brive", nom: "Brive la Gaillarde", rail: "#0EA5C7" },
@@ -265,7 +274,7 @@ export default function App() {
         supabase.from('qualif_items').select('*').order('position'),
         supabase.from('personne_qualifications').select('*'),
       ]);
-      setPersonnes(personnesData || []);
+      setPersonnes((personnesData || []).map(normalizePersonne));
       setQualifItems(itemsData || []);
       setOrderedItemIds((itemsData || []).map((it) => it.id));
       setPq(buildPqMap(pqData || []));
@@ -280,7 +289,7 @@ export default function App() {
       .channel('trombi-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'personnes' }, async () => {
         const { data } = await supabase.from('personnes').select('*');
-        setPersonnes(data || []);
+        setPersonnes((data || []).map(normalizePersonne));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'qualif_items' }, async () => {
         const { data } = await supabase.from('qualif_items').select('*').order('position');
@@ -303,7 +312,7 @@ export default function App() {
       supabase.from('qualif_items').select('*').order('position'),
       supabase.from('personne_qualifications').select('*'),
     ]);
-    setPersonnes(p || []);
+    setPersonnes((p || []).map(normalizePersonne));
     setQualifItems(i || []);
     setOrderedItemIds((i || []).map((it) => it.id));
     setPq(buildPqMap(q || []));
@@ -933,8 +942,8 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds }) {
                     {liste.map((p) => (
                       <th key={p.id} style={{ minWidth: 120, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "1px solid #e2e8f0", padding: "8px 4px", textAlign: "center", verticalAlign: "bottom" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-                          {p.photoUrl ? (
-                            <img src={p.photoUrl} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
+                          {p.photo_url || p.photoUrl ? (
+                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
                           ) : (
                             <div style={{ width: 52, height: 52, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 16, border: "2px solid rgba(255,255,255,0.3)" }}>
                               {initials(p)}
