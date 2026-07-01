@@ -535,7 +535,7 @@ export default function App() {
         ) : view === "qualifs" ? (
           <QualificationsView
             agences={agencesAffichees}
-            personnes={filteredPersonnes}
+            personnes={personnes}
             items={qualifItems}
             pq={pq}
             adminMode={adminMode}
@@ -554,7 +554,7 @@ export default function App() {
           <div className="qualifs-print-wrapper">
             <ImpressionView
               agences={agencesAffichees}
-              personnes={filteredPersonnes}
+              personnes={personnes}
               items={qualifItems}
               pq={pq}
               orderedItemIds={orderedItemIds}
