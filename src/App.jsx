@@ -1075,7 +1075,7 @@ function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange }) {
           </button>
         </div>
       )}
-      <AvatarUpload personne={personne} size={500} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
+      <AvatarUpload personne={personne} size={150} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
       <p className="trombi-name mt-4 font-bold text-base text-slate-800">{personne.prenom} {personne.nom}</p>
       <p className="trombi-sub text-sm text-cyan-700 font-medium mt-0.5">{personne.poste}</p>
       {personne.ville && (
