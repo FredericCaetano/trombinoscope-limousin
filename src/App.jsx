@@ -842,7 +842,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
   const cellStyle = (color) => ({
     background: color,
     color: "white",
-    fontSize: "11px",
+    fontSize: "13px",
     fontWeight: "700",
     padding: "4px 6px",
     textAlign: "center",
