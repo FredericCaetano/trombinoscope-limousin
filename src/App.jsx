@@ -211,14 +211,6 @@ const normalizeItem = (it) => ({
   catLabel: it.cat_label || it.catLabel || '',
   cat:      it.cat       || 'custom',
 });
-async function uploadPhoto(personneId, base64DataUrl) {
-  const blob = await (await fetch(base64DataUrl)).blob();
-  const path = `${personneId}.jpg`;
-  const { error } = await supabase.storage.from('photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-  if (error) throw error;
-  const { data } = supabase.storage.from('photos').getPublicUrl(path);
-  return data.publicUrl;
-}
 const COLOR_ORDER = {
   "#4CAF50": 0,  // Électricité — vert
   "#F97316": 1,  // Électromécanique — orange
@@ -315,7 +307,14 @@ export default function App() {
     markSaved();setEditingPersonne(null);
   }
   async function deletePersonne(id){setPersonnes(prev=>prev.filter(p=>p.id!==id));setPq(prev=>{const n={...prev};delete n[id];return n;});setSaving(true);await supabase.from('personnes').delete().eq('id',id);markSaved();}
-  async function updatePersonPhoto(id,b64){setSaving(true);try{const url=await uploadPhoto(id,b64);await supabase.from('personnes').update({photo_url:url}).eq('id',id);setPersonnes(prev=>prev.map(p=>p.id===id?{...p,photo_url:url,photoUrl:url}:p));}catch(e){console.error(e);}markSaved();}
+  async function updatePersonPhoto(id,b64){
+    setSaving(true);
+    try {
+      await supabase.from('personnes').update({ photo_url: b64 }).eq('id', id);
+      setPersonnes(prev => prev.map(p => p.id === id ? { ...p, photo_url: b64, photoUrl: b64 } : p));
+    } catch(e) { console.error('Photo save error:', e); }
+    markSaved();
+  }
   async function toggleItem(pid,iid){const held=(pq[pid]??[]).includes(iid);setPq(prev=>({...prev,[pid]:held?(prev[pid]??[]).filter(x=>x!==iid):[...(prev[pid]??[]),iid]}));setSaving(true);if(held)await supabase.from('personne_qualifications').delete().match({personne_id:pid,item_id:iid});else await supabase.from('personne_qualifications').insert({personne_id:pid,item_id:iid});markSaved();}
   async function addQualifItem(catLabel,numero,libelle,color,insertAfterColor){
     const id=`q${Date.now()}`;const position=orderedItemIds.length;
@@ -385,8 +384,8 @@ export default function App() {
           .trombi-view .trombi-rail  { display: none !important; }
           .trombi-view .trombi-card  { padding: 5px !important; }
           .trombi-view .trombi-photo { width: 50px !important; height: 50px !important; font-size: 14px !important; }
-          .trombi-view .trombi-name  { font-size: 10px !important; margin-top: 3px !important; }
-          .trombi-view .trombi-sub   { font-size: 9px !important; }
+          .trombi-view .trombi-name  { font-size: 8px !important; margin-top: 3px !important; }
+          .trombi-view .trombi-sub   { font-size: 7px !important; }
           .trombi-view .trombi-spec  { display: none !important; }
 
           /* Qualifications : portrait A3, TOUT en une seule page, pas de saut */
@@ -842,7 +841,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
   const cellStyle = (color) => ({
     background: color,
     color: "white",
-    fontSize: "13px",
+    fontSize: "8.5px",
     fontWeight: "700",
     padding: "4px 6px",
     textAlign: "center",
@@ -904,12 +903,12 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
               </div>
 
             {/* Tableau */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8px" }}>
                 {/* En-tête techniciens */}
                 <thead>
                   <tr>
-                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "10px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
-                    <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
+                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "7px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
+                    <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: "8px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
                     {liste.map((p) => (
                       <th key={p.id} style={{ minWidth: 120, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "1px solid #e2e8f0", padding: "8px 4px", textAlign: "center", verticalAlign: "bottom" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, position: "relative" }}>
@@ -925,16 +924,16 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                             </div>
                           )}
                           {p.photo_url || p.photoUrl ? (
-                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 102, height: 102, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
+                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
                           ) : (
-                            <div style={{ width: 102, height: 102, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 16 }}>
+                            <div style={{ width: 52, height: 52, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 16 }}>
                               {initials(p)}
                             </div>
                           )}
-                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "16px", lineHeight: 1.2, textAlign: "center" }}>
+                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "9.5px", lineHeight: 1.2, textAlign: "center" }}>
                             {p.prenom}<br />{p.nom}
                           </span>
-                          <span style={{ color: "#94a3b8", fontSize: "15px" }}>{p.matricule}</span>
+                          <span style={{ color: "#94a3b8", fontSize: "8px" }}>{p.matricule}</span>
                         </div>
                       </th>
                     ))}
@@ -952,7 +951,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                           </td>
                         )}
                         {/* Intitulé mission */}
-                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "15px", background: "#fafafa", height: 22 }}>
+                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "9px", background: "#fafafa", height: 22 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {/* Rond couleur cliquable en mode édition */}
                             <button
@@ -1075,7 +1074,7 @@ function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange }) {
           </button>
         </div>
       )}
-      <AvatarUpload personne={personne} size={150} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
+      <AvatarUpload personne={personne} size={180} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
       <p className="trombi-name mt-4 font-bold text-base text-slate-800">{personne.prenom} {personne.nom}</p>
       <p className="trombi-sub text-sm text-cyan-700 font-medium mt-0.5">{personne.poste}</p>
       {personne.ville && (
