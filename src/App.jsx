@@ -302,6 +302,15 @@ export default function App() {
     setPq(buildPqMap(q)); setLoading(false);
   }
 
+  const filteredPersonnes = useMemo(() => {
+    return personnes.filter((p) => {
+      const matchAgence = agenceFilter === "toutes" || p.agenceId === agenceFilter;
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q || `${p.prenom} ${p.nom} ${p.poste}`.toLowerCase().includes(q);
+      return matchAgence && matchSearch;
+    });
+  }, [personnes, agenceFilter, search]);
+
   function markSaved() { setLastSaved(new Date()); setSaving(false); }
 
   async function savePersonne(data) {
