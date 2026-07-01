@@ -307,12 +307,19 @@ export default function App() {
     markSaved();setEditingPersonne(null);
   }
   async function deletePersonne(id){setPersonnes(prev=>prev.filter(p=>p.id!==id));setPq(prev=>{const n={...prev};delete n[id];return n;});setSaving(true);await supabase.from('personnes').delete().eq('id',id);markSaved();}
-  async function updatePersonPhoto(id,b64){
+  async function updatePersonPhoto(id, b64) {
     setSaving(true);
     try {
-      await supabase.from('personnes').update({ photo_url: b64 }).eq('id', id);
+      const { error } = await supabase.from('personnes').update({ photo_url: b64 }).eq('id', id);
+      if (error) {
+        alert('Erreur Supabase : ' + error.message + '\n\nCode : ' + error.code);
+        markSaved();
+        return;
+      }
       setPersonnes(prev => prev.map(p => p.id === id ? { ...p, photo_url: b64, photoUrl: b64 } : p));
-    } catch(e) { console.error('Photo save error:', e); }
+    } catch(e) {
+      alert('Erreur inattendue : ' + e.message);
+    }
     markSaved();
   }
   async function toggleItem(pid,iid){const held=(pq[pid]??[]).includes(iid);setPq(prev=>({...prev,[pid]:held?(prev[pid]??[]).filter(x=>x!==iid):[...(prev[pid]??[]),iid]}));setSaving(true);if(held)await supabase.from('personne_qualifications').delete().match({personne_id:pid,item_id:iid});else await supabase.from('personne_qualifications').insert({personne_id:pid,item_id:iid});markSaved();}
