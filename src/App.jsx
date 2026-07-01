@@ -842,7 +842,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
   const cellStyle = (color) => ({
     background: color,
     color: "white",
-    fontSize: "8.5px",
+    fontSize: "11px",
     fontWeight: "700",
     padding: "4px 6px",
     textAlign: "center",
@@ -908,8 +908,8 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                 {/* En-tête techniciens */}
                 <thead>
                   <tr>
-                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "7px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
-                    <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: "8px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
+                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "10px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
+                    <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
                     {liste.map((p) => (
                       <th key={p.id} style={{ minWidth: 120, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "1px solid #e2e8f0", padding: "8px 4px", textAlign: "center", verticalAlign: "bottom" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, position: "relative" }}>
