@@ -315,18 +315,28 @@ export default function App() {
 
   async function savePersonne(data) {
     setSaving(true);
+    const normalized = { ...data, agence_id: data.agenceId || data.agence_id || 'brive' };
+    const { photoUrl, agenceId, ...dbData } = normalized;
     if (data.id && personnes.find((p) => p.id === data.id)) {
-      const { photoUrl, agenceId, ...rest } = data;
-      await supabase.from('personnes').update(rest).eq('id', data.id);
+      // Mise à jour locale immédiate
+      setPersonnes((prev) => prev.map((p) => p.id === data.id ? { ...p, ...normalized } : p));
+      await supabase.from('personnes').update(dbData).eq('id', data.id);
     } else {
       const id = data.id || `p${Date.now()}`;
-      const { photoUrl, agenceId, ...rest } = { ...data, id };
-      await supabase.from('personnes').insert({ ...rest, agence_id: data.agenceId || data.agence_id || 'brive' });
+      const newP = { ...normalized, id };
+      const { photoUrl: _, agenceId: __, ...insertData } = newP;
+      // Mise à jour locale immédiate
+      setPersonnes((prev) => [...prev, newP]);
+      setPq((prev) => ({ ...prev, [id]: [] }));
+      await supabase.from('personnes').insert(insertData);
     }
     markSaved(); setEditingPersonne(null);
   }
 
   async function deletePersonne(id) {
+    // Mise à jour locale immédiate
+    setPersonnes((prev) => prev.filter((p) => p.id !== id));
+    setPq((prev) => { const next = { ...prev }; delete next[id]; return next; });
     setSaving(true);
     await supabase.from('personnes').delete().eq('id', id);
     markSaved();
@@ -344,6 +354,12 @@ export default function App() {
 
   async function toggleItem(personneId, itemId) {
     const held = (pq[personneId] ?? []).includes(itemId);
+    // Mise à jour locale immédiate
+    setPq((prev) => {
+      const current = prev[personneId] ?? [];
+      const next = held ? current.filter((x) => x !== itemId) : [...current, itemId];
+      return { ...prev, [personneId]: next };
+    });
     setSaving(true);
     if (held) {
       await supabase.from('personne_qualifications').delete().match({ personne_id: personneId, item_id: itemId });
@@ -355,21 +371,33 @@ export default function App() {
 
   async function addQualifItem(catLabel, numero, libelle, color) {
     const id = `q${Date.now()}`;
+    const position = orderedItemIds.length;
+    const newItem = { id, cat: 'custom', cat_label: catLabel, catLabel, numero, libelle, color, position };
+    // Mise à jour locale immédiate
+    setQualifItems((prev) => [...prev, newItem]);
+    setOrderedItemIds((prev) => [...prev, id]);
     setSaving(true);
-    await supabase.from('qualif_items').insert({ id, cat: 'custom', cat_label: catLabel, numero, libelle, color, position: orderedItemIds.length });
+    await supabase.from('qualif_items').insert({ id, cat: 'custom', cat_label: catLabel, numero, libelle, color, position });
     markSaved(); setAddingItem(false);
   }
 
   async function deleteQualifItem(itemId) {
+    // Mise à jour locale immédiate
+    setQualifItems((prev) => prev.filter((it) => it.id !== itemId));
+    setOrderedItemIds((prev) => prev.filter((id) => id !== itemId));
+    setPq((prev) => { const next = {}; for (const pid in prev) next[pid] = prev[pid].filter((id) => id !== itemId); return next; });
     setSaving(true);
     await supabase.from('qualif_items').delete().eq('id', itemId);
     markSaved();
   }
 
   async function changeItemColor(itemId, color) {
+    // Mise à jour locale immédiate
+    setQualifItems((prev) => prev.map((it) => it.id === itemId ? { ...it, color } : it));
+    setColorPickerFor(null);
     setSaving(true);
     await supabase.from('qualif_items').update({ color }).eq('id', itemId);
-    setColorPickerFor(null); markSaved();
+    markSaved();
   }
 
   async function moveItemBefore(dragId, targetId) {
