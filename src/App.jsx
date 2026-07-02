@@ -404,10 +404,10 @@ export default function App() {
           .trombi-view { zoom: 0.68; transform-origin: top left; }
           .trombi-agency-page { page-break-after: auto !important; break-after: auto !important; page-break-before: auto !important; }
           .trombi-view .trombi-rail  { display: none !important; }
-          .trombi-view .trombi-card  { padding: 5px !important; }
-          .trombi-view .trombi-photo { width: 80px !important; height: 80px !important; font-size: 14px !important; }
-          .trombi-view .trombi-name  { font-size: 8px !important; margin-top: 3px !important; }
-          .trombi-view .trombi-sub   { font-size: 7px !important; }
+          .trombi-view .trombi-card  { padding: 2px !important; }
+          .trombi-view .trombi-photo { width: 110px !important; height: 80px !important; font-size: 14px !important; }
+          .trombi-view .trombi-name  { font-size: 11px !important; margin-top: 3px !important; }
+          .trombi-view .trombi-sub   { font-size: 10px !important; }
           .trombi-view .trombi-spec  { display: none !important; }
 
           /* Qualifications : portrait A3, TOUT en une seule page, pas de saut */
