@@ -414,7 +414,7 @@ export default function App() {
           .impression-page { page-break-after: auto !important; break-after: auto !important; page-break-before: auto !important; }
           .qualifs-print-wrapper { zoom: 0.70; transform-origin: top left; }
           .qualifs-print-wrapper table  { font-size: 6.5px !important; }
-          .qualifs-print-wrapper tr     { height: 3px !important; }
+          .qualifs-print-wrapper tr     { height: 9px !important; }
           .qualifs-print-wrapper td,
           .qualifs-print-wrapper th     { padding: 0 3px !important; line-height: 1 !important; }
         }
@@ -971,7 +971,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                           </td>
                         )}
                         {/* Intitulé mission */}
-                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "13px", background: "#fafafa", height: 28 }}>
+                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "13px", background: "#fafafa", height: 22 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {/* Rond couleur cliquable en mode édition */}
                             <button
