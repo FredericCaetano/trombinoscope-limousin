@@ -226,6 +226,37 @@ const INITIAL_ORDERED_IDS = [...INITIAL_QUALIF_ITEMS]
   .sort((a, b) => (COLOR_ORDER[a.color] ?? 50) - (COLOR_ORDER[b.color] ?? 50))
   .map((it) => it.id);
 
+
+/* ---------------------------------------------------------------
+   PARAMÈTRES VISUELS — modifiables via le panneau en mode édition
+--------------------------------------------------------------- */
+const DEFAULT_SETTINGS = {
+  // Trombinoscope (écran)
+  trombiPhotoSize: 180,
+  trombiNameSize: 16,
+  trombiSubSize: 14,
+  // Qualifications (ImpressionView — écran)
+  qualifPhotoSize: 102,
+  qualifTechNameSize: 13,
+  qualifMatriculeSize: 11,
+  qualifCodeSize: 11,
+  qualifMissionSize: 13,
+  qualifNumeroSize: 12,
+  qualifCellTextSize: 13,
+  qualifHeaderSize: 11,
+  qualifRowHeight: 28,
+  qualifCellHeight: 22,
+  // Impression Trombinoscope
+  printTrombiZoom: 68,
+  printTrombiPhotoSize: 50,
+  printTrombiNameSize: 8,
+  printTrombiSubSize: 7,
+  // Impression Qualifications
+  printQualifZoom: 70,
+  printQualifRowHeight: 11,
+  printQualifFontSize: 6,
+};
+
 export default function App() {
   const [loading, setLoading]         = useState(true);
   const [saving,  setSaving]          = useState(false);
@@ -244,6 +275,18 @@ export default function App() {
   const [addingItem,     setAddingItem]      = useState(false);
   const [colorPickerFor, setColorPickerFor]  = useState(null);
   const [editingItem,    setEditingItem]     = useState(null);
+  const [showSettings,  setShowSettings]   = useState(false);
+  const [uiSettings, setUiSettings] = useState(() => {
+    try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem('trombi_ui') || '{}') }; }
+    catch { return DEFAULT_SETTINGS; }
+  });
+  function setSetting(k, v) {
+    setUiSettings(prev => {
+      const next = { ...prev, [k]: v };
+      try { localStorage.setItem('trombi_ui', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
 
   const bpq = (rows) => { const m={}; (rows||[]).forEach(r=>{ if(!m[r.personne_id])m[r.personne_id]=[]; m[r.personne_id].push(r.item_id); }); return m; };
 
@@ -399,24 +442,19 @@ export default function App() {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .no-print { display: none !important; }
           .print-only { display: block !important; }
-
-          /* Trombinoscope : paysage A3, TOUT en une seule page, pas de saut */
-          .trombi-view { zoom: 0.68; transform-origin: top left; }
+          .trombi-view { zoom: ${uiSettings.printTrombiZoom / 100}; transform-origin: top left; }
           .trombi-agency-page { page-break-after: auto !important; break-after: auto !important; page-break-before: auto !important; }
           .trombi-view .trombi-rail  { display: none !important; }
-          .trombi-view .trombi-card  { padding: 1px !important; }
-          .trombi-view .trombi-photo { width: 110px !important; height: 110px !important; font-size: 14px !important; }
-          .trombi-view .trombi-name  { font-size: 11px !important; margin-top: 3px !important; }
-          .trombi-view .trombi-sub   { font-size: 10px !important; }
+          .trombi-view .trombi-card  { padding: 5px !important; }
+          .trombi-view .trombi-photo { width: ${uiSettings.printTrombiPhotoSize}px !important; height: ${uiSettings.printTrombiPhotoSize}px !important; font-size: ${Math.round(uiSettings.printTrombiPhotoSize * 0.28)}px !important; }
+          .trombi-view .trombi-name  { font-size: ${uiSettings.printTrombiNameSize}px !important; margin-top: 3px !important; }
+          .trombi-view .trombi-sub   { font-size: ${uiSettings.printTrombiSubSize}px !important; }
           .trombi-view .trombi-spec  { display: none !important; }
-
-          /* Qualifications : portrait A3, TOUT en une seule page, pas de saut */
           .impression-page { page-break-after: auto !important; break-after: auto !important; page-break-before: auto !important; }
-          .qualifs-print-wrapper { zoom: 0.70; transform-origin: top left; }
-          .qualifs-print-wrapper table  { font-size: 6.5px !important; }
-          .qualifs-print-wrapper tr     { height: 9px !important; }
-          .qualifs-print-wrapper td,
-          .qualifs-print-wrapper th     { padding: 0 3px !important; line-height: 1 !important; }
+          .qualifs-print-wrapper { zoom: ${uiSettings.printQualifZoom / 100}; transform-origin: top left; }
+          .qualifs-print-wrapper table  { font-size: ${uiSettings.printQualifFontSize}px !important; }
+          .qualifs-print-wrapper tr     { height: ${uiSettings.printQualifRowHeight}px !important; }
+          .qualifs-print-wrapper td, .qualifs-print-wrapper th { padding: 0 3px !important; line-height: 1 !important; }
         }
         .print-only { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -470,6 +508,13 @@ export default function App() {
               >
                 <Printer size={16} /> Imprimer
               </button>
+              {adminMode && (
+                <button onClick={() => setShowSettings(v => !v)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white hover:bg-white/20 transition no-print"
+                  title="Réglages visuels">
+                  <Settings2 size={16} /> Réglages
+                </button>
+              )}
               <button
                 onClick={() => (adminMode ? setAdminMode(false) : setShowPasswordModal(true))}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition ${
@@ -589,6 +634,7 @@ export default function App() {
               onEdit={setEditingPersonne}
               onDelete={deletePersonne}
               onPhotoChange={updatePersonPhoto}
+            uiSettings={uiSettings}
             />
           </div>
         )}
@@ -597,6 +643,11 @@ export default function App() {
       <footer className="no-print px-2 pb-10 text-xs text-slate-400">
         Données extraites du fichier Excel source · les photos restent à ajouter via le mode édition · maquette en mémoire, à connecter à une base pour la persistance.
       </footer>
+
+      {showSettings && adminMode && (
+        <SettingsPanel settings={uiSettings} onSet={setSetting} onClose={() => setShowSettings(false)}
+          onReset={() => { setUiSettings(DEFAULT_SETTINGS); try { localStorage.removeItem('trombi_ui'); } catch {} }} />
+      )}
 
       {editingPersonne && (
         <PersonneModal
@@ -832,7 +883,7 @@ function AvatarUpload({ personne, size = 64, editable, onChange }) {
    VUE IMPRESSION A3 — format fidèle au tableau Excel d'origine
    (code catégorie vertical | intitulé mission | cellule colorée par technicien)
 --------------------------------------------------------------- */
-function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceFilter, adminMode, onToggle, onAddItem, onDeleteItem, onPickColor, onEditItem, onEdit, onDelete, onPhotoChange }) {
+function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceFilter, adminMode, onToggle, onAddItem, onDeleteItem, onPickColor, onEditItem, onEdit, onDelete, onPhotoChange, uiSettings = DEFAULT_SETTINGS }) {
   const itemMap = useMemo(() => Object.fromEntries(items.map((it) => [it.id, it])), [items]);
 
   const orderedItems = useMemo(() =>
@@ -861,7 +912,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
   const cellStyle = (color) => ({
     background: color,
     color: "white",
-    fontSize: "13px",
+    fontSize: uiSettings.qualifCellTextSize + "px",
     fontWeight: "700",
     padding: "4px 6px",
     textAlign: "center",
@@ -927,8 +978,8 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                 {/* En-tête techniciens */}
                 <thead>
                   <tr>
-                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
-                    <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
+                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: uiSettings.qualifHeaderSize + "px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
+                    <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: uiSettings.qualifHeaderSize + "px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
                     {liste.map((p) => (
                       <th key={p.id} style={{ minWidth: 120, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "1px solid #e2e8f0", padding: "8px 4px", textAlign: "center", verticalAlign: "bottom" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, position: "relative" }}>
@@ -944,16 +995,16 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                             </div>
                           )}
                           {p.photo_url || p.photoUrl ? (
-                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 102, height: 102, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
+                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: uiSettings.qualifPhotoSize, height: uiSettings.qualifPhotoSize, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
                           ) : (
-                            <div style={{ width: 102, height: 102, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 28 }}>
+                            <div style={{ width: uiSettings.qualifPhotoSize, height: uiSettings.qualifPhotoSize, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: Math.round(uiSettings.qualifPhotoSize * 0.28) }}>
                               {initials(p)}
                             </div>
                           )}
-                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "13px", lineHeight: 1.2, textAlign: "center" }}>
+                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: uiSettings.qualifTechNameSize + "px", lineHeight: 1.2, textAlign: "center" }}>
                             {p.prenom}<br />{p.nom}
                           </span>
-                          <span style={{ color: "#94a3b8", fontSize: "11px" }}>{p.matricule}</span>
+                          <span style={{ color: "#94a3b8", fontSize: uiSettings.qualifMatriculeSize + "px" }}>{p.matricule}</span>
                         </div>
                       </th>
                     ))}
@@ -966,12 +1017,12 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                     group.items.map((item, itemIdx) => (
                       <tr key={item.id} style={{ borderBottom: itemIdx === group.items.length - 1 ? "2px solid " + group.color + "50" : "1px solid #f1f5f9" }}>
                         {itemIdx === 0 && (
-                          <td rowSpan={group.items.length} style={{ background: group.color + "18", borderRight: "2px solid " + group.color + "60", padding: "2px 3px", verticalAlign: "middle", textAlign: "center", writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: "11px", fontWeight: 800, color: group.color, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
+                          <td rowSpan={group.items.length} style={{ background: group.color + "18", borderRight: "2px solid " + group.color + "60", padding: "2px 3px", verticalAlign: "middle", textAlign: "center", writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: uiSettings.qualifCodeSize + "px", fontWeight: 800, color: group.color, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
                             {group.items[0]?.cat && group.items[0].cat !== "custom" ? group.items[0].cat : group.catLabel}
                           </td>
                         )}
                         {/* Intitulé mission */}
-                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "13px", background: "#fafafa", height: 22 }}>
+                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: uiSettings.qualifMissionSize + "px", background: "#fafafa", height: uiSettings.qualifRowHeight }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {/* Rond couleur cliquable en mode édition */}
                             <button
@@ -980,7 +1031,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                               style={{ width: 8, height: 8, borderRadius: "50%", background: item.color, border: "none", cursor: adminMode ? "pointer" : "default", flexShrink: 0, padding: 0 }}
                             />
                             <span>
-                              <span style={{ color: "#94a3b8", marginRight: 4, fontSize: "12px" }}>{item.numero}</span>
+                              <span style={{ color: "#94a3b8", marginRight: 4, fontSize: uiSettings.qualifNumeroSize + "px" }}>{item.numero}</span>
                               {item.libelle}
                             </span>
                             {/* Crayon renommage en mode édition */}
@@ -1009,7 +1060,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                                 padding: 0,
                                 textAlign: "center",
                                 verticalAlign: "middle",
-                                height: 22,
+                                height: uiSettings.qualifCellHeight,
                                 cursor: adminMode ? "pointer" : "default",
                                 transition: "opacity 0.1s",
                               }}
@@ -1021,7 +1072,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                                   {item.numero} {item.libelle}
                                 </div>
                               ) : adminMode ? (
-                                <div style={{ height: 22, background: "#f8fafc" }} />
+                                <div style={{ height: uiSettings.qualifCellHeight, background: "#f8fafc" }} />
                               ) : null}
                             </td>
                           );
@@ -1094,7 +1145,7 @@ function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange }) {
           </button>
         </div>
       )}
-      <AvatarUpload personne={personne} size={180} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
+      <AvatarUpload personne={personne} size={uiSettings.trombiPhotoSize} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
       <p className="trombi-name mt-4 font-bold text-base text-slate-800">{personne.prenom} {personne.nom}</p>
       <p className="trombi-sub text-sm text-cyan-700 font-medium mt-0.5">{personne.poste}</p>
       {personne.ville && (
@@ -1663,6 +1714,80 @@ function PasswordModal({ onClose, onSuccess }) {
           Valider
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   PANNEAU DE RÉGLAGES VISUELS
+--------------------------------------------------------------- */
+function SettingSlider({ label, value, min, max, step = 1, unit = '', onChange }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+        <span style={{ fontSize: 12, color: '#475569' }}>{label}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#1e3a5f', minWidth: 36, textAlign: 'right' }}>{value}{unit}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        style={{ width: '100%', accentColor: '#2563eb', height: 4 }} />
+    </div>
+  );
+}
+
+function SettingsSection({ title, children }) {
+  return (
+    <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #f1f5f9' }}>
+      <p style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function SettingsPanel({ settings, onSet, onClose, onReset }) {
+  return (
+    <div className="no-print" style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: 300, background: 'white', boxShadow: '-4px 0 24px rgba(0,0,0,0.18)', zIndex: 200, overflowY: 'auto', padding: '20px 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1e3a5f' }}>⚙️ Réglages visuels</h3>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94a3b8' }}>✕</button>
+      </div>
+
+      <SettingsSection title="Trombinoscope — Écran">
+        <SettingSlider label="Taille des photos" value={settings.trombiPhotoSize} min={60} max={280} unit="px" onChange={v => onSet('trombiPhotoSize', v)} />
+        <SettingSlider label="Nom" value={settings.trombiNameSize} min={10} max={28} unit="px" onChange={v => onSet('trombiNameSize', v)} />
+        <SettingSlider label="Sous-textes (poste, tél…)" value={settings.trombiSubSize} min={8} max={20} unit="px" onChange={v => onSet('trombiSubSize', v)} />
+      </SettingsSection>
+
+      <SettingsSection title="Qualifications — Écran">
+        <SettingSlider label="Photos techniciens" value={settings.qualifPhotoSize} min={40} max={200} unit="px" onChange={v => onSet('qualifPhotoSize', v)} />
+        <SettingSlider label="Nom technicien" value={settings.qualifTechNameSize} min={7} max={22} unit="px" onChange={v => onSet('qualifTechNameSize', v)} />
+        <SettingSlider label="Matricule" value={settings.qualifMatriculeSize} min={6} max={18} unit="px" onChange={v => onSet('qualifMatriculeSize', v)} />
+        <SettingSlider label="En-tête Code/Mission" value={settings.qualifHeaderSize} min={6} max={18} unit="px" onChange={v => onSet('qualifHeaderSize', v)} />
+        <SettingSlider label="Code vertical (ELE-REG)" value={settings.qualifCodeSize} min={6} max={18} unit="px" onChange={v => onSet('qualifCodeSize', v)} />
+        <SettingSlider label="Intitulé mission" value={settings.qualifMissionSize} min={7} max={22} unit="px" onChange={v => onSet('qualifMissionSize', v)} />
+        <SettingSlider label="Numéro mission" value={settings.qualifNumeroSize} min={6} max={18} unit="px" onChange={v => onSet('qualifNumeroSize', v)} />
+        <SettingSlider label="Texte cellule colorée" value={settings.qualifCellTextSize} min={7} max={22} unit="px" onChange={v => onSet('qualifCellTextSize', v)} />
+        <SettingSlider label="Hauteur ligne mission" value={settings.qualifRowHeight} min={14} max={60} unit="px" onChange={v => onSet('qualifRowHeight', v)} />
+        <SettingSlider label="Hauteur cellule tech" value={settings.qualifCellHeight} min={14} max={60} unit="px" onChange={v => onSet('qualifCellHeight', v)} />
+      </SettingsSection>
+
+      <SettingsSection title="Impression — Trombinoscope">
+        <SettingSlider label="Zoom global" value={settings.printTrombiZoom} min={30} max={110} unit="%" onChange={v => onSet('printTrombiZoom', v)} />
+        <SettingSlider label="Taille photos" value={settings.printTrombiPhotoSize} min={25} max={120} unit="px" onChange={v => onSet('printTrombiPhotoSize', v)} />
+        <SettingSlider label="Nom" value={settings.printTrombiNameSize} min={5} max={16} unit="px" onChange={v => onSet('printTrombiNameSize', v)} />
+        <SettingSlider label="Sous-textes" value={settings.printTrombiSubSize} min={4} max={14} unit="px" onChange={v => onSet('printTrombiSubSize', v)} />
+      </SettingsSection>
+
+      <SettingsSection title="Impression — Qualifications">
+        <SettingSlider label="Zoom global" value={settings.printQualifZoom} min={30} max={110} unit="%" onChange={v => onSet('printQualifZoom', v)} />
+        <SettingSlider label="Hauteur des lignes" value={settings.printQualifRowHeight} min={6} max={30} unit="px" onChange={v => onSet('printQualifRowHeight', v)} />
+        <SettingSlider label="Taille des textes" value={settings.printQualifFontSize} min={4} max={14} unit="px" onChange={v => onSet('printQualifFontSize', v)} />
+      </SettingsSection>
+
+      <button onClick={onReset}
+        style={{ width: '100%', padding: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#64748b' }}>
+        🔄 Réinitialiser par défaut
+      </button>
     </div>
   );
 }
