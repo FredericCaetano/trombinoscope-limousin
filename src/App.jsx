@@ -414,7 +414,7 @@ export default function App() {
           .impression-page { page-break-after: auto !important; break-after: auto !important; page-break-before: auto !important; }
           .qualifs-print-wrapper { zoom: 0.70; transform-origin: top left; }
           .qualifs-print-wrapper table  { font-size: 6.5px !important; }
-          .qualifs-print-wrapper tr     { height: 11px !important; }
+          .qualifs-print-wrapper tr     { height: 10px !important; }
           .qualifs-print-wrapper td,
           .qualifs-print-wrapper th     { padding: 0 3px !important; line-height: 1 !important; }
         }
