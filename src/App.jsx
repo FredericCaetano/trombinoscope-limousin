@@ -863,7 +863,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
   const cellStyle = (color) => ({
     background: color,
     color: "white",
-    fontSize: "8.5px",
+    fontSize: "12px",
     fontWeight: "700",
     padding: "4px 6px",
     textAlign: "center",
@@ -925,11 +925,11 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
               </div>
 
             {/* Tableau */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
                 {/* En-tête techniciens */}
                 <thead>
                   <tr>
-                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "7px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
+                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "10px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
                     <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: "8px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
                     {liste.map((p) => (
                       <th key={p.id} style={{ minWidth: 120, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "1px solid #e2e8f0", padding: "8px 4px", textAlign: "center", verticalAlign: "bottom" }}>
@@ -946,16 +946,16 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                             </div>
                           )}
                           {p.photo_url || p.photoUrl ? (
-                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
+                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 82, height: 82, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
                           ) : (
                             <div style={{ width: 52, height: 52, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 16 }}>
                               {initials(p)}
                             </div>
                           )}
-                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "9.5px", lineHeight: 1.2, textAlign: "center" }}>
+                          <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "13px", lineHeight: 1.2, textAlign: "center" }}>
                             {p.prenom}<br />{p.nom}
                           </span>
-                          <span style={{ color: "#94a3b8", fontSize: "8px" }}>{p.matricule}</span>
+                          <span style={{ color: "#94a3b8", fontSize: "11px" }}>{p.matricule}</span>
                         </div>
                       </th>
                     ))}
@@ -968,12 +968,12 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                     group.items.map((item, itemIdx) => (
                       <tr key={item.id} style={{ borderBottom: itemIdx === group.items.length - 1 ? "2px solid " + group.color + "50" : "1px solid #f1f5f9" }}>
                         {itemIdx === 0 && (
-                          <td rowSpan={group.items.length} style={{ background: group.color + "18", borderRight: "2px solid " + group.color + "60", padding: "2px 3px", verticalAlign: "middle", textAlign: "center", writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: "7px", fontWeight: 800, color: group.color, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
+                          <td rowSpan={group.items.length} style={{ background: group.color + "18", borderRight: "2px solid " + group.color + "60", padding: "2px 3px", verticalAlign: "middle", textAlign: "center", writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: "10px", fontWeight: 800, color: group.color, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
                             {group.items[0]?.cat && group.items[0].cat !== "custom" ? group.items[0].cat : group.catLabel}
                           </td>
                         )}
                         {/* Intitulé mission */}
-                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "9px", background: "#fafafa", height: 22 }}>
+                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "12px", background: "#fafafa", height: 22 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {/* Rond couleur cliquable en mode édition */}
                             <button
@@ -982,7 +982,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                               style={{ width: 8, height: 8, borderRadius: "50%", background: item.color, border: "none", cursor: adminMode ? "pointer" : "default", flexShrink: 0, padding: 0 }}
                             />
                             <span>
-                              <span style={{ color: "#94a3b8", marginRight: 4, fontSize: "8.5px" }}>{item.numero}</span>
+                              <span style={{ color: "#94a3b8", marginRight: 4, fontSize: "11px" }}>{item.numero}</span>
                               {item.libelle}
                             </span>
                             {/* Crayon renommage en mode édition */}
