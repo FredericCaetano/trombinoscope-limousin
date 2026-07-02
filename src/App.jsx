@@ -687,20 +687,14 @@ function Avatar({ personne, size = 64 }) {
 const CROP_SIZE = 280;
 
 function CropModal({ src, onClose, onSave }) {
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
+  const [pos, setPos]         = useState({ x: 0, y: 0 });
+  const [zoom, setZoom]       = useState(1);
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState(null);
-  const [naturalSize, setNaturalSize] = useState(null);
-  const imgRef = useRef(null);
+  const imgRef  = useRef(null);
+  const canvasRef = useRef(null);
 
-  const baseScale = naturalSize
-    ? Math.max(CROP_SIZE / naturalSize.w, CROP_SIZE / naturalSize.h)
-    : 1;
-  const currentScale = baseScale * zoom;
-  const imgW = naturalSize ? naturalSize.w * currentScale : CROP_SIZE;
-  const imgH = naturalSize ? naturalSize.h * currentScale : CROP_SIZE;
-
+  // Drag handlers
   function startDrag(clientX, clientY) {
     setDragging(true);
     setDragStart({ x: clientX - pos.x, y: clientY - pos.y });
@@ -712,25 +706,46 @@ function CropModal({ src, onClose, onSave }) {
   function endDrag() { setDragging(false); }
 
   function handleSave() {
+    const img = imgRef.current;
+    if (!img) return;
+    // Calculer la taille affichée de l'image (object-fit: cover dans CROP_SIZE)
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    const fitScale = Math.max(CROP_SIZE / nw, CROP_SIZE / nh);
+    const dispW = nw * fitScale * zoom;
+    const dispH = nh * fitScale * zoom;
+    // Position de l'image dans la zone de recadrage
+    const dx = CROP_SIZE / 2 + pos.x - dispW / 2;
+    const dy = CROP_SIZE / 2 + pos.y - dispH / 2;
+
     const canvas = document.createElement("canvas");
-    canvas.width = CROP_SIZE;
-    canvas.height = CROP_SIZE;
+    canvas.width = CROP_SIZE; canvas.height = CROP_SIZE;
     const ctx = canvas.getContext("2d");
     ctx.beginPath();
     ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2, 0, Math.PI * 2);
     ctx.clip();
-    const dx = CROP_SIZE / 2 + pos.x - imgW / 2;
-    const dy = CROP_SIZE / 2 + pos.y - imgH / 2;
-    ctx.drawImage(imgRef.current, dx, dy, imgW, imgH);
+    ctx.drawImage(img, dx, dy, dispW, dispH);
     onSave(canvas.toDataURL("image/jpeg", 0.92));
   }
+
+  // Taille affichée de l'image (couvre le cercle, puis zoom)
+  const fitStyle = {
+    position: "absolute",
+    // On laisse le navigateur calculer la taille via transform
+    width: CROP_SIZE,
+    height: CROP_SIZE,
+    objectFit: "cover",
+    transformOrigin: "center center",
+    transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`,
+    pointerEvents: "none",
+    userSelect: "none",
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-sm p-7 relative" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><X size={18} /></button>
         <h3 className="font-bold text-base mb-1" style={{ color: "#1e3a5f" }}>Ajuster la photo</h3>
-        <p className="text-xs text-slate-400 mb-4">Glissez pour repositionner · utilisez le curseur pour zoomer</p>
+        <p className="text-xs text-slate-400 mb-4">Glissez pour repositionner · curseur pour zoomer</p>
 
         {/* Zone de recadrage */}
         <div
@@ -743,26 +758,12 @@ function CropModal({ src, onClose, onSave }) {
           }}
           onMouseDown={(e) => { e.preventDefault(); startDrag(e.clientX, e.clientY); }}
           onMouseMove={(e) => moveDrag(e.clientX, e.clientY)}
-          onMouseUp={endDrag}
-          onMouseLeave={endDrag}
+          onMouseUp={endDrag} onMouseLeave={endDrag}
           onTouchStart={(e) => { const t = e.touches[0]; startDrag(t.clientX, t.clientY); }}
-          onTouchMove={(e) => { const t = e.touches[0]; moveDrag(t.clientX, t.clientY); }}
+          onTouchMove={(e) => { e.preventDefault(); const t = e.touches[0]; moveDrag(t.clientX, t.clientY); }}
           onTouchEnd={endDrag}
         >
-          <img
-            ref={imgRef}
-            src={src}
-            alt=""
-            draggable={false}
-            onLoad={(e) => setNaturalSize({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
-            style={{
-              position: "absolute",
-              width: imgW, height: imgH,
-              left: CROP_SIZE / 2 + pos.x - imgW / 2,
-              top: CROP_SIZE / 2 + pos.y - imgH / 2,
-              pointerEvents: "none",
-            }}
-          />
+          <img ref={imgRef} src={src} alt="" draggable={false} style={fitStyle} />
         </div>
 
         {/* Curseur zoom */}
@@ -771,14 +772,11 @@ function CropModal({ src, onClose, onSave }) {
             <span className="text-xs font-semibold text-slate-500">Zoom</span>
             <span className="text-xs text-slate-400">{Math.round(zoom * 100)}%</span>
           </div>
-          <input
-            type="range" min="1" max="4" step="0.05"
-            value={zoom}
-            onChange={(e) => setZoom(parseFloat(e.target.value))}
-            className="w-full accent-blue-700"
-          />
+          <input type="range" min="1" max="3" step="0.02"
+            value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))}
+            className="w-full accent-blue-700" />
           <div className="flex justify-between text-[10px] text-slate-300 mt-0.5">
-            <span>1×</span><span>4×</span>
+            <span>1× (normal)</span><span>3× (zoom max)</span>
           </div>
         </div>
 
@@ -863,7 +861,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
   const cellStyle = (color) => ({
     background: color,
     color: "white",
-    fontSize: "12px",
+    fontSize: "13px",
     fontWeight: "700",
     padding: "4px 6px",
     textAlign: "center",
@@ -925,12 +923,12 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
               </div>
 
             {/* Tableau */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8px" }}>
                 {/* En-tête techniciens */}
                 <thead>
                   <tr>
-                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "10px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
-                    <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: "8px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
+                    <th style={{ width: 52, minWidth: 52, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #cbd5e1", padding: "4px 2px", fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Code</th>
+                    <th style={{ minWidth: 140, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "2px solid #e2e8f0", padding: "6px 10px", textAlign: "left", fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>Mission</th>
                     {liste.map((p) => (
                       <th key={p.id} style={{ minWidth: 120, background: "#f8fafc", borderBottom: "2px solid #e2e8f0", borderRight: "1px solid #e2e8f0", padding: "8px 4px", textAlign: "center", verticalAlign: "bottom" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, position: "relative" }}>
@@ -946,9 +944,9 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                             </div>
                           )}
                           {p.photo_url || p.photoUrl ? (
-                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 82, height: 82, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
+                            <img src={p.photo_url || p.photoUrl} alt="" style={{ width: 102, height: 102, borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
                           ) : (
-                            <div style={{ width: 52, height: 52, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 16 }}>
+                            <div style={{ width: 102, height: 102, borderRadius: "50%", background: hashColor(p.nom + p.prenom), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 28 }}>
                               {initials(p)}
                             </div>
                           )}
@@ -968,12 +966,12 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                     group.items.map((item, itemIdx) => (
                       <tr key={item.id} style={{ borderBottom: itemIdx === group.items.length - 1 ? "2px solid " + group.color + "50" : "1px solid #f1f5f9" }}>
                         {itemIdx === 0 && (
-                          <td rowSpan={group.items.length} style={{ background: group.color + "18", borderRight: "2px solid " + group.color + "60", padding: "2px 3px", verticalAlign: "middle", textAlign: "center", writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: "10px", fontWeight: 800, color: group.color, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
+                          <td rowSpan={group.items.length} style={{ background: group.color + "18", borderRight: "2px solid " + group.color + "60", padding: "2px 3px", verticalAlign: "middle", textAlign: "center", writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: "11px", fontWeight: 800, color: group.color, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
                             {group.items[0]?.cat && group.items[0].cat !== "custom" ? group.items[0].cat : group.catLabel}
                           </td>
                         )}
                         {/* Intitulé mission */}
-                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "12px", background: "#fafafa", height: 22 }}>
+                        <td style={{ padding: "3px 10px", borderRight: "2px solid #e2e8f0", color: "#334155", fontSize: "13px", background: "#fafafa", height: 28 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {/* Rond couleur cliquable en mode édition */}
                             <button
@@ -982,7 +980,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
                               style={{ width: 8, height: 8, borderRadius: "50%", background: item.color, border: "none", cursor: adminMode ? "pointer" : "default", flexShrink: 0, padding: 0 }}
                             />
                             <span>
-                              <span style={{ color: "#94a3b8", marginRight: 4, fontSize: "11px" }}>{item.numero}</span>
+                              <span style={{ color: "#94a3b8", marginRight: 4, fontSize: "12px" }}>{item.numero}</span>
                               {item.libelle}
                             </span>
                             {/* Crayon renommage en mode édition */}
