@@ -597,6 +597,7 @@ export default function App() {
             onEdit={setEditingPersonne}
             onDelete={deletePersonne}
             onPhotoChange={updatePersonPhoto}
+            uiSettings={uiSettings}
           />
         ) : view === "qualifs" ? (
           <QualificationsView
@@ -1090,7 +1091,7 @@ function ImpressionView({ agences, personnes, items, pq, orderedItemIds, agenceF
   );
 }
 
-function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, onPhotoChange }) {
+function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, onPhotoChange, uiSettings = DEFAULT_SETTINGS }) {
   return (
     <div className="space-y-10 print:space-y-2 trombi-view">
       {agences.map((agence) => {
@@ -1121,7 +1122,7 @@ function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, on
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-5 gap-4 print:gap-2">
                 {liste.map((p) => (
-                  <PersonCard key={p.id} personne={p} adminMode={adminMode} onEdit={onEdit} onDelete={onDelete} onPhotoChange={onPhotoChange} />
+                  <PersonCard key={p.id} personne={p} adminMode={adminMode} onEdit={onEdit} onDelete={onDelete} onPhotoChange={onPhotoChange} photoSize={uiSettings.trombiPhotoSize} />
                 ))}
               </div>
             </div>
@@ -1132,7 +1133,7 @@ function TrombinoscopeView({ agences, personnes, adminMode, onEdit, onDelete, on
   );
 }
 
-function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange }) {
+function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange, photoSize = 180 }) {
   return (
     <div className="trombi-card group relative border border-slate-200 rounded-xl p-5 print:p-2 flex flex-col items-center text-center hover:shadow-md transition bg-slate-50/50">
       {adminMode && (
@@ -1145,7 +1146,7 @@ function PersonCard({ personne, adminMode, onEdit, onDelete, onPhotoChange }) {
           </button>
         </div>
       )}
-      <AvatarUpload personne={personne} size={uiSettings.trombiPhotoSize} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
+      <AvatarUpload personne={personne} size={photoSize} editable={adminMode} onChange={(url) => onPhotoChange(personne.id, url)} />
       <p className="trombi-name mt-4 font-bold text-base text-slate-800">{personne.prenom} {personne.nom}</p>
       <p className="trombi-sub text-sm text-cyan-700 font-medium mt-0.5">{personne.poste}</p>
       {personne.ville && (
